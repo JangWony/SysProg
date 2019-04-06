@@ -163,6 +163,8 @@ int main(int argc, char **argv)
  * background children don't receive SIGINT (SIGTSTP) from the kernel
  * when we type ctrl-c (ctrl-z) at the keyboard.  
 */
+sigset_t mask;
+
 void eval(char *cmdline) 
 {
     char *argv[MAXARGS];
@@ -187,7 +189,8 @@ void eval(char *cmdline)
         }
         
         addjob(jobs,pid,(bg == 1 ? BG : FG),cmdline); // Add job
-        
+        Sigemptyset(&mask);
+        Sigaddset(&mask,SIGINT);
         sigprocmask(SIG_UNBLOCK,&mask,NULL); // Unblock Signal
 
         if(!bg) 
