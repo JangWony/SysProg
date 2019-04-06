@@ -375,12 +375,12 @@ void sigchld_handler(int sig)
             }
             j->state = ST;
 
-            fprintf(stdout,"Job [%d] (%d) stopped by signal %d\n",pid2jid(child_pid),child_pid,WSTOPSIG(status));
+            //fprintf(stdout,"Job [%d] (%d) stopped by signal %d\n",pid2jid(child_pid),child_pid,WSTOPSIG(status));
 	    }
         else if(WIFSIGNALED(status)){
             child_jid = pid2jid(child_pid);
             deletejob(jobs,child_pid);
-            fprintf(stdout,"Job [%d] (%d) terminated by signal %d\n",child_jid,child_pid,WTERMSIG(status));
+            //fprintf(stdout,"Job [%d] (%d) terminated by signal %d\n",child_jid,child_pid,WTERMSIG(status));
 	    }
         else if(WIFEXITED(status)){
             child_jid = pid2jid(child_pid);
@@ -404,7 +404,7 @@ void sigint_handler(int sig)
     if((pid = fgpid(jobs)) > 0) {
         if(kill(-pid,SIGINT) < 0) unix_error("sigint_handler(): kill() error");
 
-	    //printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
+	    printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
     }
     return;
 }
@@ -421,7 +421,7 @@ void sigtstp_handler(int sig)
     if((pid = fgpid(jobs)) > 0){
 	    if(kill(-pid,SIGTSTP) < 0) unix_error("sigtstp_handler(): kill() error");
 
-	    //printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+	    printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
     }
     return;
 }
