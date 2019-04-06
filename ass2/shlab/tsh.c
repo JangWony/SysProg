@@ -189,8 +189,6 @@ void eval(char *cmdline)
         }
         
         addjob(jobs,pid,(bg == 1 ? BG : FG),cmdline); // Add job
-        Sigemptyset(&mask);
-        Sigaddset(&mask,SIGINT);
         sigprocmask(SIG_UNBLOCK,&mask,NULL); // Unblock Signal
 
         if(!bg) 
@@ -406,7 +404,7 @@ void sigint_handler(int sig)
     if((pid = fgpid(jobs)) > 0) {
         if(kill(-pid,SIGINT) < 0) unix_error("sigint_handler(): kill() error");
 
-	    printf("Job [%d] (%d) terminatd by signal 2\n", pid2jid(pid), pid);
+	    //printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
     }
     return;
 }
@@ -423,7 +421,7 @@ void sigtstp_handler(int sig)
     if((pid = fgpid(jobs)) > 0){
 	    if(kill(-pid,SIGTSTP) < 0) unix_error("sigtstp_handler(): kill() error");
 
-	    printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
+	    //printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
     }
     return;
 }
