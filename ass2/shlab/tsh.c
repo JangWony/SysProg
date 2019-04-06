@@ -222,11 +222,11 @@ int parseline(const char *cmdline, char **argv)
     /* Build the argv list */
     argc = 0;
     if (*buf == '\'') {
-	buf++;
-	delim = strchr(buf, '\'');
+        buf++;
+        delim = strchr(buf, '\'');
     }
     else {
-	delim = strchr(buf, ' ');
+	    delim = strchr(buf, ' ');
     }
 
     while (delim) {
@@ -234,24 +234,24 @@ int parseline(const char *cmdline, char **argv)
 	*delim = '\0';
 	buf = delim + 1;
 	while (*buf && (*buf == ' ')) /* ignore spaces */
-	       buf++;
-
-	if (*buf == '\'') {
 	    buf++;
-	    delim = strchr(buf, '\'');
-	}
-	else {
-	    delim = strchr(buf, ' ');
-	}
+
+        if (*buf == '\'') {
+            buf++;
+            delim = strchr(buf, '\'');
+        }
+        else {
+            delim = strchr(buf, ' ');
+        }
     }
     argv[argc] = NULL;
     
     if (argc == 0)  /* ignore blank line */
-	return 1;
+	    return 1;
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
-	argv[--argc] = NULL;
+	    argv[--argc] = NULL;
     }
     return bg;
 }
@@ -284,13 +284,13 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    job_t *j = NULL;
+    struct job_t *j = NULL;
 
     if(argv[1] == NULL){
         printf("%s command requires PID or %%jobid argument\n", argv[0]);
         retrun;
     }
-    if(isdigit(argv[0][1]))
+    if(isdigit(argv[1][0]))
     {
         pid_t pid = atoi(argv[1]);
         if(!(j= getjobpid(jobs,pid))){
