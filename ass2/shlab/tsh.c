@@ -290,7 +290,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    struct job_t *j = NULL;
+    struct job_t *job = NULL;
 
     if(argv[1] == NULL){
         printf("%s command requires PID or %%jobid argument\n", argv[0]);
@@ -299,14 +299,14 @@ void do_bgfg(char **argv)
     if(isdigit(argv[1][0]))
     {
         pid_t pid = atoi(argv[1]);
-        if(!(j= getjobpid(jobs,pid))){
+        if(!(job= getjobpid(jobs,pid))){
             printf("(%d): No such process\n", pid);
             return;
         }
     }
     else if(argv[1][0] == '%') {
         int jid = atoi(&argv[1][1]); 
-        if(!(j = getjobjid(jobs,jid))){
+        if(!(job = getjobjid(jobs,jid))){
 	        printf("%s: No such job\n",argv[1]);
             return;
         }
@@ -317,18 +317,18 @@ void do_bgfg(char **argv)
     }
 
     if(!strcmp(argv[0],"bg")){
-        if(kill(-(j->pid),SIGCONT) < 0) 
+        if(kill(-(job->pid),SIGCONT) < 0) 
             unix_error("do_bgfg(): kill error");
 
-        j->state =BG;
-        printf("[%d] (%d) %s",j->jid,j->pid,j->cmdline);
+        job->state =BG;
+        printf("[%d] (%d) %s",job->jid,job->pid,job->cmdline);
     }
     else if(!strcmp(argv[0],"fg")){
-        if(kill(-(j->pid),SIGCONT) < 0) 
+        if(kill(-(job->pid),SIGCONT) < 0) 
             unix_error("do_bgfg(): kill error");
 
-        j->state = FG;
-	    waitfg(j->pid);
+        job->state = FG;
+	    waitfg(job->pid);
     }
     else{
         printf("do_bgfg(): internal error\n");
