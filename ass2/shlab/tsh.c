@@ -1,7 +1,7 @@
 /* 
  * tsh - A tiny shell program with job control
  * 
- * <Put your student number and login ID here>
+ * 2014-17719 , stu139
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -172,23 +172,28 @@ void eval(char *cmdline)
     pid_t pid;
 
     // parse and check!
-    bg = parseline(cmdline, argv);
     if(argv[0] == NULL) // empty line
         return;
+        
+    bg = parseline(cmdline, argv);
     
     if(!builtin_cmd(argv)){
-        if((pid = fork())<0)
-            unix_error("");
+        if((pid = fork()) < 0)
+            unix_error("eval(): fork() error");
         if(pid == 0){
             if(setpgid(0,0) < 0)
-                unix_error("");
-            if(execve(argv[0],argv,environ)<0){
+                unix_error("eval(): setpgid() error");
+            if(execve(argv[0],argv,environ) < 0){
                 printf("%s : Command not found\n",argv[0]);
                 exit(0);
             }
         }
         
-        addjob(jobs,pid,(bg == 1 ? BG : FG),cmdline); // Add job
+        if(bg == 1)
+            addjob(jobs, pid,BG,cmdline);
+        else
+            addjob(jobs, pid,FG,cmdline);
+
         sigprocmask(SIG_UNBLOCK,&mask,NULL); // Unblock Signal
 
         if(!bg) 
@@ -277,7 +282,7 @@ int builtin_cmd(char **argv)
 
     if(!strcmp(argv[0],"&")) return 1; // ignore
 
-    return 0;     /* not a builtin command */
+    return 0;     // not a builtin command 
 }
 
 /* 
@@ -375,12 +380,10 @@ void sigchld_handler(int sig)
             }
             j->state = ST;
 
-            //fprintf(stdout,"Job [%d] (%d) stopped by signal %d\n",pid2jid(child_pid),child_pid,WSTOPSIG(status));
 	    }
         else if(WIFSIGNALED(status)){
             child_jid = pid2jid(child_pid);
             deletejob(jobs,child_pid);
-            //fprintf(stdout,"Job [%d] (%d) terminated by signal %d\n",child_jid,child_pid,WTERMSIG(status));
 	    }
         else if(WIFEXITED(status)){
             child_jid = pid2jid(child_pid);
@@ -402,7 +405,8 @@ void sigint_handler(int sig)
     pid_t pid;
 
     if((pid = fgpid(jobs)) > 0) {
-        if(kill(-pid,SIGINT) < 0) unix_error("sigint_handler(): kill() error");
+        if(kill(-pid,SIGINT) < 0) 
+            unix_error("sigint_handler(): kill() error");
 
 	    printf("Job [%d] (%d) terminated by signal 2\n", pid2jid(pid), pid);
     }
@@ -419,7 +423,8 @@ void sigtstp_handler(int sig)
     pid_t pid;
 
     if((pid = fgpid(jobs)) > 0){
-	    if(kill(-pid,SIGTSTP) < 0) unix_error("sigtstp_handler(): kill() error");
+	    if(kill(-pid,SIGTSTP) < 0) 
+            unix_error("sigtstp_handler(): kill() error");
 
 	    printf("Job [%d] (%d) stopped by signal 20\n", pid2jid(pid), pid);
     }
