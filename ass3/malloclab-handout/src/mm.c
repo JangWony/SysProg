@@ -57,6 +57,8 @@
 /* functions */
 static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
+static void *find_fit(size_t asize);
+static void place(void *bp, size_t asize);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -125,6 +127,34 @@ static void *coalesce(void *bp){
     return bp;
 }
 
+static void *find_fit(size_t asize){
+    void *bp;
+
+    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)){
+        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
+            return bp;
+        }
+    }
+    return NULL;
+}
+
+static void place(void *bp, size_t asize){
+    size_t csize = GET_SIZE(HDRP(bp));
+
+    if((csize - asize) >= (s*DSIZE)) {
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FDRP(bp), PACK(asize, 1));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(csize-asize,0));
+        PUT(FDRP(bp), PACK(csize-asize,0));
+    }
+    else{
+
+        PUT(HDRP(bp), PACK(csize,1));
+        PUT(FDRP(bp), PACK(csize,1));
+    }
+}
+
 
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
@@ -132,14 +162,28 @@ static void *coalesce(void *bp){
  */
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
+    size_t asize;
+    size_t extendsize;
+    char *bp;
+
+    if(size==0)
+        return NULL;
+    
+    if(size < DSIZE)
+        asize = 2 * DSIZE;
+    else
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
+
+    if((bp = find_fit(asize)) != NULL ){
+        place(bp , asize);
+        return bp;
     }
+
+    extendsize = MAX(asize, CHUNKSIZE);
+    if((bp = extend_heap(extendsize / WSIZE)) == NULL)
+        return NULL;
+    place(bp, asize);
+    return bp;
 }
 
 /*
