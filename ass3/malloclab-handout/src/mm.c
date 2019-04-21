@@ -43,7 +43,7 @@
 #define PACK(size, alloc) ((size) | alloc)
 
 #define GET(p) (*(unsigned int *) (p))
-#define PUT(p, val) (*(unsigned int *)(p) = (val))
+#define PUT(p,val) (*(unsigned int *)(p)=(val))
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
@@ -57,7 +57,7 @@
 
 /* functions */
 static void *extend_heap(size_t size);
-static void *coalesce(void *ptr);
+static void *coalesce(void *bp);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -122,8 +122,6 @@ static void *coalesce(void *bp){
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     }
-
-    insert_node(bp, size);
     
     return bp;
 }
