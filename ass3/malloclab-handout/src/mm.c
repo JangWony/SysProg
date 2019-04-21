@@ -42,8 +42,8 @@
 
 #define PACK(size, alloc) ((size) | alloc)
 
-#define GET(p) (*(unsigned int*) (p))
-#define PUT(p, val) (*(unsigned int*) (p) = (val))
+#define GET(p) (*(unsigned int *) (p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
@@ -68,9 +68,9 @@ int mm_init(void)
     char *heap_listp;
 
     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1)
-        retrun -1;
+        return -1;
     PUT(heap_listp, 0);                                     /* Alignment padding */
-    PUT(heap_listp + (1*WSZIE), PACK(DSIZE, 1));            /* Prologue header */
+    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1));            /* Prologue header */
     PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1));            /* Prologue footer */
     PUT(heap_listp + (3*WSIZE), PACK(0,1));                 /* Epilogue header */
     heap_listp += (2*WSIZE);
@@ -88,13 +88,13 @@ static void *extend_heap(size_t words){
 
     size= (words % 2) ? (words+1) * WSIZE : words * WSIZE;
     if((long) (bp = mem_sbrk(size)) == -1)
-        retrun NULL;
+        return NULL;
     
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
 
-    retrun coalesce(bp);
+    return coalesce(bp);
 }
 
 
