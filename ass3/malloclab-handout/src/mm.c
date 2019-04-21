@@ -54,6 +54,10 @@
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
 
 
+
+/* Global var */
+char *heap_listp;
+
 /* functions */
 static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
@@ -66,7 +70,6 @@ static void place(void *bp, size_t asize);
 int mm_init(void)
 {
 
-    char *heap_listp;
 
     if((heap_listp = mem_sbrk(4*WSIZE)) == (void *)-1)
         return -1;
@@ -141,7 +144,7 @@ static void *find_fit(size_t asize){
 static void place(void *bp, size_t asize){
     size_t csize = GET_SIZE(HDRP(bp));
 
-    if((csize - asize) >= (s*DSIZE)) {
+    if((csize - asize) >= (2*DSIZE)) {
         PUT(HDRP(bp), PACK(asize, 1));
         PUT(FDRP(bp), PACK(asize, 1));
         bp = NEXT_BLKP(bp);
