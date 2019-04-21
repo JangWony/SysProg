@@ -40,7 +40,7 @@
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)>(y)?(y):(x))
 
-#define PACK(size, alloc) ((size) | alloc)
+#define PACK(size, alloc) ((size) | alloc))
 
 #define GET(p)     (*(unsigned int *)(p))
 #define PUT(p, val) (*(unsigned int *)(p) = (val))
