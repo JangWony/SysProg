@@ -2,7 +2,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#define BUFFER_SIZE = 100000;
+#define BUFFER_SIZE 100000
+
 MODULE_LICENSE("GPL");
 
 static struct dentry *dir, *inputdir, *ptreedir;
