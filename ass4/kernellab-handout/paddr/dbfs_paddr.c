@@ -8,6 +8,11 @@ MODULE_LICENSE("GPL");
 
 static struct dentry *dir, *output;
 static struct task_struct *task;
+struct packet {
+        pid_t pid;
+        unsigned long vaddr;
+        unsigned long paddr;
+}
 
 static ssize_t read_output(struct file *fp,
                         char __user *user_buffer,
@@ -15,17 +20,43 @@ static ssize_t read_output(struct file *fp,
                         loff_t *position)
 {
         // Implement read file operation
+        struct packet *pckt;
+        pgd_t *pgd;
+        p4d_t *p4d;
+        pmd_t *pmd;
+        pte_t *pte;
+        unsigned long vpn1, vpn2, vpn3, vpn4, vpn5, vpo;
+
+        pckt = (struct packet*) user_buffer;
+
+        vpn1 = ((pckt->vaddr >> 39) & 0x1FF;
+        vpn2 = ((pckt->vaddr >> 30) & 0x1FF;
+        vpn3 = ((pckt->vaddr >> 21) & 0x1FF;
+        vpn4 = ((pckt->vaddr >> 12) & 0x1FF;
+        vpn5 = ((pckt->vaddr >> 3) & 0x1FF;
+        vpo = (pckt->vaddr) & 0xFFF;
+
+        task = pid_task(find_get_pid(pckt->pid), PIDTYPE_PID);
+
+        pgd = task->mm->pgd;
+        p4d = (p4d_t *)(((p4d + vpn1)->pgd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+	pud = (pud_t *)(((pgd + vpn2)->p4d & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+	pmd = (pmd_t *)(((pud + vpn3)->pud & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+	pte = (pte_t *)(((pmd + vpn4)->pmd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+	pckt->paddr = ((pte + vpn5)->pte & 0xFFFFFFFFFF000) + vpo;
+
+        return length;
 }
 
 static const struct file_operations dbfs_fops = {
         // Mapping file operations with your functions
+        .read = read_output,
 };
 
 static int __init dbfs_module_init(void)
 {
         // Implement init module
 
-#if 0
         dir = debugfs_create_dir("paddr", NULL);
 
         if (!dir) {
@@ -34,8 +65,7 @@ static int __init dbfs_module_init(void)
         }
 
         // Fill in the arguments below
-        output = debugfs_create_file("output", , , , );
-#endif
+        output = debugfs_create_file("output", S_IWUSR, dir, NULL, &dbfs_fops);
 
 	printk("dbfs_paddr module initialize done\n");
 
@@ -45,7 +75,7 @@ static int __init dbfs_module_init(void)
 static void __exit dbfs_module_exit(void)
 {
         // Implement exit module
-
+        debugfs_remove_recursive(dir);
 	printk("dbfs_paddr module exit\n");
 }
 
