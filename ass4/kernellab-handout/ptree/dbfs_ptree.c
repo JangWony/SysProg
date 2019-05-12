@@ -33,7 +33,7 @@ static ssize_t write_pid_to_input(struct file *fp,
         curr = pid_task(find_get_pid(input_pid), PIDTYPE_PID);
         
         blob.size = 0;
-        print pid(curr);
+        print_pid(curr);
 
         return length;
 }
