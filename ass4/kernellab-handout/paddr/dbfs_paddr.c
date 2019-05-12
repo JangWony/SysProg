@@ -13,7 +13,6 @@ struct packet {
         unsigned long vaddr;
         unsigned long paddr;
 };
-typedef struct { unsigned long p4d; } p4d_t;
 
 static ssize_t read_output(struct file *fp,
                         char __user *user_buffer,
