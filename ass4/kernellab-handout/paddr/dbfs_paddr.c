@@ -20,6 +20,7 @@ static ssize_t read_output(struct file *fp,
                         loff_t *position)
 {
         // Implement read file operation
+        struct page* pg;
         struct packet *pckt;
         pgd_t *pgd;
         p4d_t *p4d;
@@ -32,7 +33,6 @@ static ssize_t read_output(struct file *fp,
 
         task = pid_task(find_get_pid(pckt->pid), PIDTYPE_PID);
 
-        struct page* pg;
 	pgd = pgd_offset(task -> mm, pckt -> vaddr);
         p4d = p4d_offset(pgd, pckt -> vaddr);
 	pud = pud_offset(p4d, pckt -> vaddr);
