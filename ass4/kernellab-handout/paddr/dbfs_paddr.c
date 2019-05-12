@@ -40,8 +40,8 @@ static ssize_t read_output(struct file *fp,
         task = pid_task(find_get_pid(pckt->pid), PIDTYPE_PID);
 
         pgd = task->mm->pgd;
-        p4d = (p4d_t *)(((p4d + vpn1)->pgd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
-	pud = (pud_t *)(((pgd + vpn2)->p4d & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+        p4d = (p4d_t *)(((pgd + vpn1)->pgd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
+	pud = (pud_t *)(((p4d + vpn2)->p4d & 0xFFFFFFFFFF000) + PAGE_OFFSET);
 	pmd = (pmd_t *)(((pud + vpn3)->pud & 0xFFFFFFFFFF000) + PAGE_OFFSET);
 	pte = (pte_t *)(((pmd + vpn4)->pmd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
 	pckt->paddr = ((pte + vpn5)->pte & 0xFFFFFFFFFF000) + vpo;
