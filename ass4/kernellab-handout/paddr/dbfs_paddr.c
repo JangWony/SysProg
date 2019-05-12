@@ -30,21 +30,18 @@ static ssize_t read_output(struct file *fp,
 
         pckt = (struct packet*) user_buffer;
 
-        vpn1 = ((pckt->vaddr) >> 39) & 0x1FF;
-        vpn2 = ((pckt->vaddr) >> 30) & 0x1FF;
-        vpn3 = ((pckt->vaddr) >> 21) & 0x1FF;
-        vpn4 = ((pckt->vaddr) >> 12) & 0x1FF;
-        vpn5 = ((pckt->vaddr) >> 3) & 0x1FF;
-        vpo = (pckt->vaddr) & 0xFFF;
 
         task = pid_task(find_get_pid(pckt->pid), PIDTYPE_PID);
 
-        pgd = task->mm->pgd;
-        p4d = (p4d_t *)(((pgd + vpn1)->pgd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
-	pud = (pud_t *)(((p4d + vpn2)->p4d & 0xFFFFFFFFFF000) + PAGE_OFFSET);
-	pmd = (pmd_t *)(((pud + vpn3)->pud & 0xFFFFFFFFFF000) + PAGE_OFFSET);
-	pte = (pte_t *)(((pmd + vpn4)->pmd & 0xFFFFFFFFFF000) + PAGE_OFFSET);
-	pckt->paddr = ((pte + vpn5)->pte & 0xFFFFFFFFFF000) + vpo;
+        struct page* pg;
+	pgd = pgd_offset(task -> mm, pckt -> vaddr);
+        p4d = p4d_offset(pgd, pckt -> vaddr);
+	pud = pud_offset(p4d, pckt -> vaddr);
+	pmd = pmd_offset(pud, pckt -> vaddr);
+	pte = pte_offset_map(pmd, pckt -> vaddr);
+	pg = pte_page(*pte);
+	pckt -> paddr = page_to_phys(pg);
+	pte_unmap(pte);
 
         return length;
 }
