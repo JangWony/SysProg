@@ -14,7 +14,7 @@ static struct debugfs_blob_wrapper blob;
 void print_pid(struct task_struct* task){
 
         // Tracing process tree from input_pid to init(1) process
-        if(task- pid != 1)
+        if(task->pid != 1)
                 print_pid(task->real_parent);
         // Make Output Format string: process_command (process_id)
         blob.size+=snprintf(blob.data + blob.size, BUFFER_SIZE - blob.size, "%s (%d)\n", task->comm, task->pid);
