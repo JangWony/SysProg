@@ -29,11 +29,11 @@ static ssize_t read_output(struct file *fp,
 
         pckt = (struct packet*) user_buffer;
 
-        vpn1 = ((pckt->vaddr >> 39) & 0x1FF;
-        vpn2 = ((pckt->vaddr >> 30) & 0x1FF;
-        vpn3 = ((pckt->vaddr >> 21) & 0x1FF;
-        vpn4 = ((pckt->vaddr >> 12) & 0x1FF;
-        vpn5 = ((pckt->vaddr >> 3) & 0x1FF;
+        vpn1 = ((pckt->vaddr) >> 39) & 0x1FF;
+        vpn2 = ((pckt->vaddr) >> 30) & 0x1FF;
+        vpn3 = ((pckt->vaddr) >> 21) & 0x1FF;
+        vpn4 = ((pckt->vaddr) >> 12) & 0x1FF;
+        vpn5 = ((pckt->vaddr) >> 3) & 0x1FF;
         vpo = (pckt->vaddr) & 0xFFF;
 
         task = pid_task(find_get_pid(pckt->pid), PIDTYPE_PID);
