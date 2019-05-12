@@ -26,7 +26,6 @@ static ssize_t read_output(struct file *fp,
         pud_t *pud;
         pmd_t *pmd;
         pte_t *pte;
-        unsigned long vpn1, vpn2, vpn3, vpn4, vpn5, vpo;
 
         pckt = (struct packet*) user_buffer;
 
