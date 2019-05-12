@@ -11,7 +11,7 @@ static struct task_struct *curr;
 static struct debugfs_blob_wrapper blob;
 
 
-void print_pid(struct task _struct* test){
+void print_pid(struct task_struct* test){
 
         // Tracing process tree from input_pid to init(1) process
         if(task -> pid != 1)
