@@ -12,7 +12,7 @@ struct packet {
         pid_t pid;
         unsigned long vaddr;
         unsigned long paddr;
-}
+};
 
 static ssize_t read_output(struct file *fp,
                         char __user *user_buffer,
