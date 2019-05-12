@@ -2,11 +2,23 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-
+#define BUFFER_SIZE = 100000;
 MODULE_LICENSE("GPL");
 
 static struct dentry *dir, *inputdir, *ptreedir;
 static struct task_struct *curr;
+static struct debugfs_blob_wrapper blob;
+
+
+void print_pid(struct task _struct* test){
+
+        // Tracing process tree from input_pid to init(1) process
+        if(task -> pid != 1)
+                print_pid(task->real_parent);
+        // Make Output Format string: process_command (process_id)
+        blob.size+=snprintf(blob.data + blob.size, BUFFER_SIZE - blob.size, "%s (%d)\n", task->comm, task->pid);
+}
+
 
 static ssize_t write_pid_to_input(struct file *fp, 
                                 const char __user *user_buffer, 
@@ -15,12 +27,12 @@ static ssize_t write_pid_to_input(struct file *fp,
 {
         pid_t input_pid;
 
-        //sscanf(user_buffer, "%u", &input_pid);
+        sscanf(user_buffer, "%u", &input_pid);
         //curr = // Find task_struct using input_pid. Hint: pid_task
-
-        // Tracing process tree from input_pid to init(1) process
-
-        // Make Output Format string: process_command (process_id)
+        curr = pid_task(find_get_pid(input_pid), PIDTYPE_PID);
+        
+        blob.size = 0;
+        print pid(curr);
 
         return length;
 }
@@ -31,9 +43,10 @@ static const struct file_operations dbfs_fops = {
 
 static int __init dbfs_module_init(void)
 {
+        static char buffer[BUFFER_SIZE];
+        blob.data = buffer;
         // Implement init module code
 
-#if 0
         dir = debugfs_create_dir("ptree", NULL);
         
         if (!dir) {
@@ -41,9 +54,8 @@ static int __init dbfs_module_init(void)
                 return -1;
         }
 
-        inputdir = debugfs_create_file("input", , , , );
-        ptreedir = debugfs_create_("ptree", , , ); // Find suitable debugfs API
-#endif
+        inputdir = debugfs_create_file("input", S_IWUSR, dir, NULL, &dbfs_fops);
+        ptreedir = debugfs_create_blob("ptree", S_IRUSR, dir, &blob); // Find suitable debugfs API
 	
 	printk("dbfs_ptree module initialize done\n");
 
@@ -53,7 +65,7 @@ static int __init dbfs_module_init(void)
 static void __exit dbfs_module_exit(void)
 {
         // Implement exit module code
-	
+	debugfs_remove_recursive(dir);
 	printk("dbfs_ptree module exit\n");
 }
 
