@@ -7,7 +7,7 @@
 #include <sys/mman.h>
 
 #define DBFS_FILE_PATH  "/sys/kernel/debug/paddr/output"
-#define PADDR   0x42341000
+#define PADDR   0x234512000
 
 struct packet {
         pid_t pid;
