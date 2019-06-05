@@ -1,12 +1,6 @@
 #include <stdio.h>
 
-void cache_init();
-int cache_find(char *url);
-int cache_eviction();
-void cache_LRU(int index);
-void cache_uri(char *uri,char *buf);
-void readerPre(int i);
-void readerAfter(int i);
+#include "cache.h"
 
 // Cache function
 void cache_init(){
