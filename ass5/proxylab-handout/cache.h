@@ -9,9 +9,9 @@ typedef struct {
     int LRU;
     int isEmpty;
 
-    int readCnt;            /*count of readers*/
-    sem_t wmutex;           /*protects accesses to cache*/
-    sem_t rdcntmutex;       /*protects accesses to readcnt*/
+    int readCnt;            
+    sem_t wmutex;          
+    sem_t rdcntmutex;    
 
     int writeCnt;
     sem_t wtcntMutex;
@@ -20,7 +20,7 @@ typedef struct {
 }cache_block;
 
 typedef struct {
-    cache_block cacheobjs[10];  /*ten cache blocks*/
+    cache_block cacheobjs[10];  
     int cache_num;
 }Cache;
 

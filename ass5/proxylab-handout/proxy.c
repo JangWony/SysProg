@@ -55,7 +55,7 @@ int main(int argc, char **argv){
         Pthread_create(&tid, NULL, thread, (void *)conn_fd);
     }
 
-    //Close(listen_fd);
+    Close(listen_fd);
     return 0;
 }
 
@@ -100,7 +100,7 @@ void parse_uri(char *uri, char *hostname, char *path, int *port){
 
 void handle(int conn_fd){
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
-    char hostname[MAXLINE], pathname[MAXLINE];/*, log[MAXLINE]*/
+    char hostname[MAXLINE], pathname[MAXLINE];
     char endserver_http_header [MAXLINE];
     int portNumber;
 
@@ -113,13 +113,13 @@ void handle(int conn_fd){
     sscanf(buf, "%s %s %s", method, uri, version);
 
     char url_store[100];
-    strcpy(url_store, uri); // store the original url
+    strcpy(url_store, uri); 
     if(strcasecmp(method,"GET")){
         printf("Proxy does not implement the method");
         return;
     }
     int cache_index;
-    if((cache_index=cache_find(&cache, url_store))!=-1){/*in cache then return the cache content*/
+    if((cache_index=cache_find(&cache, url_store))!=-1){
         readerPre(&cache,cache_index);
         Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
         readerAfter(&cache,cache_index);
@@ -128,11 +128,9 @@ void handle(int conn_fd){
     }
 
     parse_uri(uri, hostname, pathname, &portNumber);
-    //    printf("uri: %s\nhostname: %s\npathname: %s\n port: %d\n", uri, hostname, pathname, portNumber);
 
     build_http_header(endserver_http_header,hostname,pathname,portNumber,&rio);
 
-    /*connect to the end server*/
     end_serverfd = connect_endServer(hostname,portNumber,endserver_http_header);
     if(end_serverfd<0){
         printf("connection failed\n");
@@ -153,7 +151,6 @@ void handle(int conn_fd){
     }
     Close(end_serverfd);
 
-    /*store it*/
     if(sizebuf < MAX_OBJECT_SIZE){
         cache_uri(&cache,url_store,cachebuf);
     }
@@ -164,14 +161,14 @@ void handle(int conn_fd){
 void build_http_header(char *http_header,char *hostname,char *path,int port,rio_t *client_rio)
 {
     char buf[MAXLINE],request_hdr[MAXLINE],other_hdr[MAXLINE],host_hdr[MAXLINE];
-    /*request line*/
+   
     sprintf(request_hdr,requestlint_hdr_format,path);
-    /*get other request header for client rio and change it */
+
     while(Rio_readlineb(client_rio,buf,MAXLINE)>0)
     {
-        if(strcmp(buf,endof_hdr)==0) break;/*EOF*/
+        if(strcmp(buf,endof_hdr)==0) break;
 
-        if(!strncasecmp(buf,host_key,strlen(host_key)))/*Host:*/
+        if(!strncasecmp(buf,host_key,strlen(host_key)))
         {
             strcpy(host_hdr,buf);
             continue;
@@ -199,7 +196,7 @@ void build_http_header(char *http_header,char *hostname,char *path,int port,rio_
 
     return ;
 }
-/*Connect to the end server*/
+
 inline int connect_endServer(char *hostname,int port,char *http_header){
     char portStr[100];
     sprintf(portStr,"%d",port);

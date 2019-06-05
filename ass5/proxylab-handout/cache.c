@@ -2,7 +2,6 @@
 
 #include "cache.h"
 
-// Cache function
 void cache_init(Cache *cache){
     cache->cache_num = 0;
     int i;
@@ -52,7 +51,6 @@ void writeAfter(Cache *cache,int i){
     V(&cache->cacheobjs[i].wtcntMutex);
 }
 
-/*find url is in the cache or not */
 int cache_find(Cache *cache,char *url){
     int i;
     for(i=0;i<10;i++){
@@ -60,11 +58,10 @@ int cache_find(Cache *cache,char *url){
         if((cache->cacheobjs[i].isEmpty==0) && (strcmp(url,cache->cacheobjs[i].cache_url)==0)) break;
         readerAfter(cache,i);
     }
-    if(i>=10) return -1; /*can not find url in the cache*/
+    if(i>=10) return -1; 
     return i;
 }
 
-/*find the empty cacheObj or which cacheObj should be evictioned*/
 int cache_eviction(Cache *cache){
     int min = 9999;
     int minindex = 0;
@@ -72,12 +69,12 @@ int cache_eviction(Cache *cache){
     for(i=0; i<10; i++)
     {
         readerPre(cache,i);
-        if(cache->cacheobjs[i].isEmpty == 1){/*choose if cache block empty */
+        if(cache->cacheobjs[i].isEmpty == 1){
             minindex = i;
             readerAfter(cache,i);
             break;
         }
-        if(cache->cacheobjs[i].LRU< min){    /*if not empty choose the min LRU*/
+        if(cache->cacheobjs[i].LRU< min){   
             minindex = i;
             readerAfter(cache,i);
             continue;
@@ -87,7 +84,7 @@ int cache_eviction(Cache *cache){
 
     return minindex;
 }
-/*update the LRU number except the new cache one*/
+
 void cache_LRU(Cache *cache,int index){
 
     writePre(cache,index);
@@ -111,19 +108,19 @@ void cache_LRU(Cache *cache,int index){
         writeAfter(cache, i);
     }
 }
-/*cache the uri and content in cache*/
+
 void cache_uri(Cache *cache, char *uri,char *buf){
 
 
     int i = cache_eviction(cache);
 
-    writePre(cache,i);/*writer P*/
+    writePre(cache,i);
 
     strcpy(cache->cacheobjs[i].cache_obj,buf);
     strcpy(cache->cacheobjs[i].cache_url,uri);
     cache->cacheobjs[i].isEmpty = 0;
 
-    writeAfter(cache, i);/*writer V*/
+    writeAfter(cache, i);
 
     cache_LRU(cache,i);
 }
