@@ -169,7 +169,7 @@ void handle(int conn_fd){
         return;
     }
 
-    Rio_readinitb(&rio_host, client_fd);
+    Rio_readinitb(&rio_host, end_serverfd);
     Rio_writen(end_serverfd, endserver_http_header, strlen(endserver_http_header));
 
     char cachebuf[MAX_OBJECT_SIZE];
