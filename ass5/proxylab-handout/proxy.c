@@ -138,57 +138,57 @@ void handle(int conn_fd){
     int client_fd =0;
     rio_t rio,rio_host;
     Rio_readinitb(&rio, conn_fd);
+    Rio_readlineb(&rio, buf, MAXLINE))
+    
+    sscanf(buf, "%s %s %s", method, uri, version);
 
-    if((n = Rio_readlineb_w(&rio, buf, MAXLINE))!=0){
-        sscanf(buf, "%s %s %s", method, uri, version);
-
-        char url_store[100];
-        strcpy(url_store, uri); // store the original url
-        if(strcasecmp(method,"GET")){
-            printf("Proxy does not implement the method");
-            return;
-        }
-        int cache_index;
-        if((cache_index=cache_find(url_store))!=-1){/*in cache then return the cache content*/
-            readerPre(cache_index);
-            Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
-            readerAfter(cache_index);
-            cache_LRU(cache_index);
-            return;
-        }
-
-        parse_uri(uri, hostname, pathname, &portNumber);
-        printf("uri: %s\nhostname: %s\npathname: %s\n port: %d\n", uri, hostname, pathname, portNumber);
-
-        build_http_header(endserver_http_header,hostname,pathname,portNumber,&rio);
-
-        /*connect to the end server*/
-        end_serverfd = connect_endServer(hostname,portNumber,endserver_http_header);
-        if(end_serverfd<0){
-            printf("connection failed\n");
-            return;
-        }
-
-        Rio_readinitb(&rio_host, client_fd);
-        Rio_writeb_w(client_fd, buf, strlen(buf));
-
-        char cachebuf[MAX_OBJECT_SIZE];
-        int sizebuf = 0;
-        size_t n;
-        while((n=Rio_readlineb(&rio_host,buf,MAXLINE))!=0)
-        {
-            sizebuf+=n;
-            if(sizebuf < MAX_OBJECT_SIZE) strcat(cachebuf,buf);
-            Rio_writen(conn_fd,buf,n);
-        }
-        Close(end_serverfd);
-
-        /*store it*/
-        if(sizebuf < MAX_OBJECT_SIZE){
-            cache_uri(url_store,cachebuf);
-        }
+    char url_store[100];
+    strcpy(url_store, uri); // store the original url
+    if(strcasecmp(method,"GET")){
+        printf("Proxy does not implement the method");
         return;
     }
+    int cache_index;
+    if((cache_index=cache_find(url_store))!=-1){/*in cache then return the cache content*/
+        readerPre(cache_index);
+        Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
+        readerAfter(cache_index);
+        cache_LRU(cache_index);
+        return;
+    }
+
+    parse_uri(uri, hostname, pathname, &portNumber);
+    //    printf("uri: %s\nhostname: %s\npathname: %s\n port: %d\n", uri, hostname, pathname, portNumber);
+
+    build_http_header(endserver_http_header,hostname,pathname,portNumber,&rio);
+
+    /*connect to the end server*/
+    end_serverfd = connect_endServer(hostname,portNumber,endserver_http_header);
+    if(end_serverfd<0){
+        printf("connection failed\n");
+        return;
+    }
+
+    Rio_readinitb(&rio_host, client_fd);
+    Rio_writen(end_serverfd, endserver_http_header, strlen(endserver_http_header));
+
+    char cachebuf[MAX_OBJECT_SIZE];
+    int sizebuf = 0;
+    size_t n;
+    while((n=Rio_readlineb(&rio_host,buf,MAXLINE))!=0)
+    {
+        sizebuf+=n;
+        if(sizebuf < MAX_OBJECT_SIZE) strcat(cachebuf,buf);
+        Rio_writen(conn_fd,buf,n);
+    }
+    Close(end_serverfd);
+
+    /*store it*/
+    if(sizebuf < MAX_OBJECT_SIZE){
+        cache_uri(url_store,cachebuf);
+    }
+    return;
+    
 }
 
 ssize_t Rio_readlineb_w(rio_t *rp, void *usrbuf, size_t maxlen){
