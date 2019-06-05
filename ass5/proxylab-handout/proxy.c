@@ -27,7 +27,7 @@ void build_http_header(char *http_header,char *hostname,char *path,int port,rio_
 int connect_endServer(char *hostname,int port,char *http_header);
 
 
-
+Cache cache;
 
 int main(int argc, char **argv){
 
