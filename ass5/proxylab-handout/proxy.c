@@ -187,7 +187,7 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
             sizebuf+=n;
             if(sizebuf < MAX_OBJECT_SIZE) strcat(cachebuf,buf);
             //printf("proxy received %d bytes,then send\n",(int)n);
-            Rio_writen(connfd,buf,n);
+            Rio_writen(conn_fd,buf,n);
         }
         Close(end_serverfd);
 
@@ -327,7 +327,7 @@ int cache_eviction(){
     int min = 9999;
     int minindex = 0;
     int i;
-    for(i=0; i<CACHE_OBJS_COUNT; i++)
+    for(i=0; i<10; i++)
     {
         readerPre(i);
         if(cache.cacheobjs[i].isEmpty == 1){/*choose if cache block empty */
