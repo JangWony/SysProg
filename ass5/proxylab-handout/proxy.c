@@ -9,6 +9,16 @@
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 static const char *accept_hdr = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
 static const char *accept_encoding_hdr = "Accept-Encoding: gzip, deflate\r\n";
+static const char *conn_hdr = "Connection: close\r\n";
+static const char *prox_hdr = "Proxy-Connection: close\r\n";
+static const char *host_hdr_format = "Host: %s\r\n";
+static const char *requestlint_hdr_format = "GET %s HTTP/1.0\r\n";
+static const char *endof_hdr = "\r\n";
+
+static const char *connection_key = "Connection";
+static const char *user_agent_key= "User-Agent";
+static const char *proxy_connection_key = "Proxy-Connection";
+static const char *host_key = "Host";
 
 void *thread(void *vargp);
 int parse_uri(char *uri, char *hostname, char *query, int *port);
@@ -313,7 +323,7 @@ int cache_find(char *url){
 
 /*find the empty cacheObj or which cacheObj should be evictioned*/
 int cache_eviction(){
-    int min = LRU_MAGIC_NUMBER;
+    int min = 9999;
     int minindex = 0;
     int i;
     for(i=0; i<CACHE_OBJS_COUNT; i++)
@@ -338,7 +348,7 @@ int cache_eviction(){
 void cache_LRU(int index){
 
     writePre(index);
-    cache.cacheobjs[index].LRU = LRU_MAGIC_NUMBER;
+    cache.cacheobjs[index].LRU = 9999;
     writeAfter(index);
 
     int i;
