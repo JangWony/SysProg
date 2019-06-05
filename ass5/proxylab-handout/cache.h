@@ -24,10 +24,10 @@ typedef struct {
     int cache_num;
 }Cache;
 
-void cache_init();
-int cache_find(char *url);
-int cache_eviction();
-void cache_LRU(int index);
-void cache_uri(char *uri,char *buf);
-void readerPre(int i);
-void readerAfter(int i);
+void cache_init(Cache *cache);
+int cache_find(Cache *cache,char *url);
+int cache_eviction(Cache *cache);
+void cache_LRU(Cache *cache,int index);
+void cache_uri(Cache *cache,char *uri,char *buf);
+void readerPre(Cache *cache,int i);
+void readerAfter(Cache *cache,int i);

@@ -37,7 +37,7 @@ int main(int argc, char **argv){
     char hostname[MAXLINE],port[MAXLINE];
     struct sockaddr_storage sockaddr;
 
-    cache_init();
+    cache_init(&cache);
 
     if(argc != 2){
         fprintf(stderr, "Usage: %s <port> \n", argv[0]);
@@ -119,11 +119,11 @@ void handle(int conn_fd){
         return;
     }
     int cache_index;
-    if((cache_index=cache_find(url_store))!=-1){/*in cache then return the cache content*/
-        readerPre(cache_index);
+    if((cache_index=cache_find(&cache, url_store))!=-1){/*in cache then return the cache content*/
+        readerPre(&cache,cache_index);
         Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
-        readerAfter(cache_index);
-        cache_LRU(cache_index);
+        readerAfter(&cache,cache_index);
+        cache_LRU(cache,cache_index);
         return;
     }
 
@@ -155,7 +155,7 @@ void handle(int conn_fd){
 
     /*store it*/
     if(sizebuf < MAX_OBJECT_SIZE){
-        cache_uri(url_store,cachebuf);
+        cache_uri(&cache,url_store,cachebuf);
     }
     return;
     
