@@ -93,7 +93,7 @@ int main(int argc, char **argv){
 void *thread(void *vargp) {
     int conn_fd = (int)vargp;
     Pthread_detach(pthread_self());
-    doit(conn_fd);
+    handle(conn_fd);
     Close(conn_fd);
 }
 
