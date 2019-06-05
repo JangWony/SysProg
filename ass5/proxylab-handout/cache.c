@@ -1,9 +1,7 @@
 #include <stdio.h>
 
 #include "cache.h"
-
-
-Cache cache;
+#include "proxy.c"
 
 // Cache function
 void cache_init(){
