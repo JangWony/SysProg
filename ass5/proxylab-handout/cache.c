@@ -2,6 +2,9 @@
 
 #include "cache.h"
 
+
+Cache cache;
+
 // Cache function
 void cache_init(){
     cache.cache_num = 0;

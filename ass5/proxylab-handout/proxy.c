@@ -29,8 +29,6 @@ int connect_endServer(char *hostname,int port,char *http_header);
 
 
 
-Cache cache;
-
 int main(int argc, char **argv){
 
     int listen_fd, conn_fd;
