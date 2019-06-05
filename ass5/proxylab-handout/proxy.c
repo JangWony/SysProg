@@ -82,7 +82,7 @@ int main(int argc, char **argv){
     while(1){
         clientlen = sizeof(sockaddr);
         conn_fd = Accept(listen_fd, (SA *)&sockaddr, &clientlen);
-        handle(conn_fd, port, &sockaddr);
+        handle(conn_fd);
     }
 
     Close(conn_fd);
@@ -91,10 +91,10 @@ int main(int argc, char **argv){
 }
 
 void *thread(void *vargp) {
-    int connfd = (int)vargp;
+    int conn_fd = (int)vargp;
     Pthread_detach(pthread_self());
-    doit(connfd);
-    Close(connfd);
+    doit(conn_fd);
+    Close(conn_fd);
 }
 
 int parse_uri(char *uri, char *hostname, char *query, int *port){
@@ -129,7 +129,7 @@ int parse_uri(char *uri, char *hostname, char *query, int *port){
     return 0;
 }
 
-void handle(int conn_fd, int port, struct addrinfo *sockaddr){
+void handle(int conn_fd){
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char hostname[MAXLINE], pathname[MAXLINE];/*, log[MAXLINE]*/
     char endserver_http_header [MAXLINE];
@@ -167,10 +167,10 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
             return;
         }
 
-        build_http_header(endserver_http_header,hostname,pathname,port,&rio);
+        build_http_header(endserver_http_header,hostname,pathname,portNumber,&rio);
 
         /*connect to the end server*/
-        end_serverfd = connect_endServer(hostname,port,endserver_http_header);
+        end_serverfd = connect_endServer(hostname,portNumber,endserver_http_header);
         if(end_serverfd<0){
             printf("connection failed\n");
             return;
