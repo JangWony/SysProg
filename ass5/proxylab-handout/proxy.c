@@ -123,7 +123,7 @@ void handle(int conn_fd){
         readerPre(&cache,cache_index);
         Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
         readerAfter(&cache,cache_index);
-        cache_LRU(cache,cache_index);
+        cache_LRU(&cache,cache_index);
         return;
     }
 
