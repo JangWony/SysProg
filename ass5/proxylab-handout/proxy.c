@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "csapp.h"
+#include "cache.c"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -25,13 +26,7 @@ void handle(int conn_fd);
 void build_http_header(char *http_header,char *hostname,char *path,int port,rio_t *client_rio);
 int connect_endServer(char *hostname,int port,char *http_header);
 
-void cache_init();
-int cache_find(char *url);
-int cache_eviction();
-void cache_LRU(int index);
-void cache_uri(char *uri,char *buf);
-void readerPre(int i);
-void readerAfter(int i);
+
 
 typedef struct {
     char cache_obj[MAX_OBJECT_SIZE];
