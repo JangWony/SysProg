@@ -19,7 +19,7 @@ static const char *proxy_connection_key = "Proxy-Connection";
 static const char *host_key = "Host";
 
 void *thread(void *vargp);
-int parse_uri(char *uri, char *hostname, char *path, int *port);
+int parse_uri(char *uri, char *hostname, char *query, int *port);
 void handle(int conn_fd);
 
 ssize_t Rio_readlineb_w(rio_t *rp, void *usrbuf, size_t maxlen);
@@ -65,7 +65,7 @@ int main(int argc, char **argv){
     pthread_t tid;
     socklen_t clientlen;
     char hostname[MAXLINE],port[MAXLINE];
-    struct addrinfo sockaddr;
+    struct sockaddr_storage sockaddr;
 
     cache_init();
 
@@ -85,8 +85,8 @@ int main(int argc, char **argv){
         Pthread_create(&tid, NULL, thread, (void *)conn_fd);
     }
 
-    Close(listen_fd);
-    exit(0);
+    //Close(listen_fd);
+    return 0;
 }
 
 void *thread(void *vargp) {
@@ -96,36 +96,36 @@ void *thread(void *vargp) {
     Close(conn_fd);
 }
 
-int parse_uri(char *uri, char *hostname, char *path, int *port){
+int parse_uri(char *uri, char *hostname, char *query, int *port){
 
-    *port = 80;
-    char* pos = strstr(uri,"//");
+    char *hoststart, *hostend, *pathstart;
+    int length;
 
-    pos = pos!=NULL? pos+2:uri;
-
-    char*pos2 = strstr(pos,":");
-    if(pos2!=NULL)
-    {
-        *pos2 = '\0';
-        sscanf(pos,"%s",hostname);
-        sscanf(pos2+1,"%d%s",port,path);
+    if(strncasecmp(uri, "http://", 7)!=0){
+        hostname[0] = '\0';
+        return -1;
     }
-    else
-    {
-        pos2 = strstr(pos,"/");
-        if(pos2!=NULL)
-        {
-            *pos2 = '\0';
-            sscanf(pos,"%s",hostname);
-            *pos2 = '/';
-            sscanf(pos2,"%s",path);
-        }
-        else
-        {
-            sscanf(pos,"%s",hostname);
-        }
+
+    hoststart = uri + 7;
+    hostend = strpbrk(hoststart, " :/\rn\n\0");
+    length = hostend - hoststart;
+    strncpy(hostname, hoststart, length);
+    hostname[length] = '\0';
+
+    *port= 80;
+    if(*hostend == ':'){
+        *port = atoi(hostend + 1);
     }
-    return;
+    
+    pathstart = strchr(hoststart, '/');
+    if(pathstart == NULL){
+        query[0] = '\0';
+    }
+    else{
+        pathstart++;
+        strncpy(query, pathstart, MAXLINE);
+    }
+    return 0;
 }
 
 void handle(int conn_fd){
