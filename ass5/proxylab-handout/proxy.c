@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "csapp.h"
-#include "cache.c"
+#include "cache.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
