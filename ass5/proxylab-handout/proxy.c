@@ -132,13 +132,13 @@ void handle(int conn_fd){
     char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
     char hostname[MAXLINE], pathname[MAXLINE];/*, log[MAXLINE]*/
     char endserver_http_header [MAXLINE];
-    int n, portNumber;
+    int portNumber;
 
     int end_serverfd;
     int client_fd =0;
     rio_t rio,rio_host;
     Rio_readinitb(&rio, conn_fd);
-    Rio_readlineb(&rio, buf, MAXLINE))
+    Rio_readlineb(&rio, buf, MAXLINE);
     
     sscanf(buf, "%s %s %s", method, uri, version);
 
