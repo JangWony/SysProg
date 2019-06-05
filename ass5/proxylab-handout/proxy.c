@@ -22,7 +22,7 @@ static const char *host_key = "Host";
 
 void *thread(void *vargp);
 int parse_uri(char *uri, char *hostname, char *query, int *port);
-void handle(int conn_fd, int port, struct addrinfo *sockaddr);
+void handle(int conn_fd);
 
 ssize_t Rio_readlineb_w(rio_t *rp, void *usrbuf, size_t maxlen);
 void Rio_writeb_w(int fd, void *usrbuf, size_t n);
