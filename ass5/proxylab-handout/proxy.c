@@ -63,9 +63,10 @@ Cache cache;
 
 int main(int argc, char **argv){
 
-    int listen_fd, conn_fd, port;
+    int listen_fd, conn_fd;
     pthread_t tid;
     socklen_t clientlen;
+    char hostname[MAXLINE],port[MAXLINE];
     struct addrinfo sockaddr;
 
     cache_init();
@@ -74,15 +75,16 @@ int main(int argc, char **argv){
         fprintf(stderr, "Usage: %s <port> \n", argv[0]);
         exit(0);
     }
+    Signal(SIGPIPE, SIG_IGN);
 
-    port = atoi(argv[1]);
-
-    listen_fd = Open_listenfd(port);
+    listen_fd = Open_listenfd(argv[1]);
 
     while(1){
         clientlen = sizeof(sockaddr);
         conn_fd = Accept(listen_fd, (SA *)&sockaddr, &clientlen);
-        handle(conn_fd);
+        Getnameinfo((SA*)&clientaddr,clientlen,hostname,MAXLINE,port,MAXLINE,0);
+        printf("Accepted connection from (%s %s).\n",hostname,port);
+        Pthread_create(&tid, NULL, thread, (void *)conn_fd);
     }
 
     Close(conn_fd);
