@@ -19,7 +19,7 @@ static const char *proxy_connection_key = "Proxy-Connection";
 static const char *host_key = "Host";
 
 void *thread(void *vargp);
-int parse_uri(char *uri, char *hostname, char *query, int *port);
+int parse_uri(char *uri, char *hostname, char *path, int *port);
 void handle(int conn_fd);
 
 ssize_t Rio_readlineb_w(rio_t *rp, void *usrbuf, size_t maxlen);
@@ -96,36 +96,36 @@ void *thread(void *vargp) {
     Close(conn_fd);
 }
 
-int parse_uri(char *uri, char *hostname, char *query, int *port){
+int parse_uri(char *uri, char *hostname, char *path, int *port){
 
-    char *hoststart, *hostend, *pathstart;
-    int length;
+    *port = 80;
+    char* pos = strstr(uri,"//");
 
-    if(strncasecmp(uri, "http://", 7)!=0){
-        hostname[0] = '\0';
-        return -1;
-    }
+    pos = pos!=NULL? pos+2:uri;
 
-    hoststart = uri + 7;
-    hostend = strpbrk(hoststart, " :/\rn\n\0");
-    length = hostend - hoststart;
-    strncpy(hostname, hoststart, length);
-    hostname[length] = '\0';
-
-    *port= 80;
-    if(*hostend == ':'){
-        *port = atoi(hostend + 1);
+    char*pos2 = strstr(pos,":");
+    if(pos2!=NULL)
+    {
+        *pos2 = '\0';
+        sscanf(pos,"%s",hostname);
+        sscanf(pos2+1,"%d%s",port,path);
     }
-    
-    pathstart = strchr(hoststart, '/');
-    if(pathstart == NULL){
-        query[0] = '\0';
+    else
+    {
+        pos2 = strstr(pos,"/");
+        if(pos2!=NULL)
+        {
+            *pos2 = '\0';
+            sscanf(pos,"%s",hostname);
+            *pos2 = '/';
+            sscanf(pos2,"%s",path);
+        }
+        else
+        {
+            sscanf(pos,"%s",hostname);
+        }
     }
-    else{
-        pathstart++;
-        strncpy(query, pathstart, MAXLINE);
-    }
-    return 0;
+    return;
 }
 
 void handle(int conn_fd){
