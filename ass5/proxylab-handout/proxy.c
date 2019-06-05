@@ -55,7 +55,7 @@ typedef struct {
 }cache_block;
 
 typedef struct {
-    cache_block cacheobjs[CACHE_OBJS_COUNT];  /*ten cache blocks*/
+    cache_block cacheobjs[10];  /*ten cache blocks*/
     int cache_num;
 }Cache;
 
@@ -136,6 +136,7 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
     struct addrinfo *addr = sockaddr;
     int n, size, portNumber;
 
+    int end_serverfd;
     int client_fd =0;
     rio_t rio,rio_host;
     Rio_readinitb(&rio, conn_fd);
@@ -153,7 +154,7 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
         int cache_index;
         if((cache_index=cache_find(url_store))!=-1){/*in cache then return the cache content*/
             readerPre(cache_index);
-            Rio_writen(connfd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
+            Rio_writen(conn_fd,cache.cacheobjs[cache_index].cache_obj,strlen(cache.cacheobjs[cache_index].cache_obj));
             readerAfter(cache_index);
             cache_LRU(cache_index);
             return;
@@ -166,7 +167,7 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
             return;
         }
 
-        build_http_header(endserver_http_header,hostname,path,port,&rio);
+        build_http_header(endserver_http_header,hostname,pathname,port,&rio);
 
         /*connect to the end server*/
         end_serverfd = connect_endServer(hostname,port,endserver_http_header);
@@ -181,7 +182,7 @@ void handle(int conn_fd, int port, struct addrinfo *sockaddr){
         char cachebuf[MAX_OBJECT_SIZE];
         int sizebuf = 0;
         size_t n;
-        while((n=Rio_readlineb(&server_rio,buf,MAXLINE))!=0)
+        while((n=Rio_readlineb(&rio_host,buf,MAXLINE))!=0)
         {
             sizebuf+=n;
             if(sizebuf < MAX_OBJECT_SIZE) strcat(cachebuf,buf);
