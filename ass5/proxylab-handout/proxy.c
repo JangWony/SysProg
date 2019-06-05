@@ -264,7 +264,7 @@ inline int connect_endServer(char *hostname,int port,char *http_header){
 void cache_init(){
     cache.cache_num = 0;
     int i;
-    for(i=0;i<CACHE_OBJS_COUNT;i++){
+    for(i=0;i<10;i++){
         cache.cacheobjs[i].LRU = 0;
         cache.cacheobjs[i].isEmpty = 1;
         Sem_init(&cache.cacheobjs[i].wmutex,0,1);
@@ -313,12 +313,12 @@ void writeAfter(int i){
 /*find url is in the cache or not */
 int cache_find(char *url){
     int i;
-    for(i=0;i<CACHE_OBJS_COUNT;i++){
+    for(i=0;i<10;i++){
         readerPre(i);
         if((cache.cacheobjs[i].isEmpty==0) && (strcmp(url,cache.cacheobjs[i].cache_url)==0)) break;
         readerAfter(i);
     }
-    if(i>=CACHE_OBJS_COUNT) return -1; /*can not find url in the cache*/
+    if(i>=10) return -1; /*can not find url in the cache*/
     return i;
 }
 
@@ -361,7 +361,7 @@ void cache_LRU(int index){
         writeAfter(i);
     }
     i++;
-    for(i; i<CACHE_OBJS_COUNT; i++)    {
+    for(i; i<10; i++)    {
         writePre(i);
         if(cache.cacheobjs[i].isEmpty==0 && i!=index){
             cache.cacheobjs[i].LRU--;
