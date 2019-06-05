@@ -11,7 +11,7 @@ void cache_init(){
         cache.cacheobjs[i].isEmpty = 1;
         Sem_init(&cache.cacheobjs[i].wmutex,0,1);
         Sem_init(&cache.cacheobjs[i].rdcntmutex,0,1);
-        cache.cacheobjs[i].readCnt = 0;
+        cache.cacheobjs[i].readCnt =         0;
 
         cache.cacheobjs[i].writeCnt = 0;
         Sem_init(&cache.cacheobjs[i].wtcntMutex,0,1);
