@@ -82,7 +82,7 @@ int main(int argc, char **argv){
     while(1){
         clientlen = sizeof(sockaddr);
         conn_fd = Accept(listen_fd, (SA *)&sockaddr, &clientlen);
-        Getnameinfo((SA*)&clientaddr,clientlen,hostname,MAXLINE,port,MAXLINE,0);
+        Getnameinfo((SA*)&sockaddr,clientlen,hostname,MAXLINE,port,MAXLINE,0);
         printf("Accepted connection from (%s %s).\n",hostname,port);
         Pthread_create(&tid, NULL, thread, (void *)conn_fd);
     }
