@@ -138,7 +138,6 @@ void handle(int conn_fd){
     int client_fd =0;
     rio_t rio,rio_host;
     Rio_readinitb(&rio, conn_fd);
-    size = 0;
 
     if((n = Rio_readlineb_w(&rio, buf, MAXLINE))!=0){
         sscanf(buf, "%s %s %s", method, uri, version);
