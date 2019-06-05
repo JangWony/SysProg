@@ -1,5 +1,8 @@
 #include<stdio.h>
 
+
+#define MAX_OBJECT_SIZE 102400
+
 typedef struct {
     char cache_obj[MAX_OBJECT_SIZE];
     char cache_url[MAXLINE];
