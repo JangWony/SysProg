@@ -165,31 +165,32 @@ static void place(void *bp, size_t asize){
  */
 void *mm_malloc(size_t size)
 {
-    size_t asize;
-    size_t extendsize;
+    size_t blksize = BLK_SIZE(size);    /* Compute the block size needed */
+    size_t esize; 						/* Size to extend heap if needed */
     char *bp;
 
-    if(size==0)
-        return NULL;
-    
-    if(size < DSIZE)
-        asize = 2 * DSIZE;
-    else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
+    /* init heap if heap is empty */
+    if (heap_listp == 0) 
+    	mm_init();
 
-    if((bp = find_fit(asize)) != NULL ){
-        place(bp , asize);
-        return bp;
-    }
+    /* ignore spurious requests */
+    if (size == 0)
+    	return NULL;
 
-    extendsize=asize;
-    if(extendsize<=DSIZE)
-        extendsize=2*DSIZE;
-    else
-        extendsize=DSIZE*((extendsize+(DSIZE)+(DSIZE-1))/DSIZE);
-    if((bp = extend_heap(extendsize / WSIZE)) == NULL)
-        return NULL;
-    place(bp, asize);
+    /* search for a fit, place in it if found */
+    if ((bp = find_fit(blksize)) != NULL) {  
+    	place(bp, blksize);                  
+    } 
+
+    /* No fit found. Get more memory and place the block */
+    /* If heap is small, only double the heapsize; else use CHUNKSIZE */
+    else { 
+	    esize = MAX(blksize, MIN(mem_heapsize(), CHUNKSIZE)); 
+	    if ((bp = extend_heap(esize/WSIZE)) == NULL)  
+	    	return NULL;                                   
+	    place(bp, blksize);  
+	}
+
     return bp;
 }
 
