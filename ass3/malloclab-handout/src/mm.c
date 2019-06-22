@@ -210,49 +210,31 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    if(ptr==NULL) return mm_malloc(size);
-    if(size==0)
-    { 
-        mm_free(ptr);
-        return ptr;
-    }
+    size_t oldsize;
+	void *newptr;
 
-    size_t asize=0;
+	/* no old ptr, just malloc */
+	if (oldptr == NULL) {
+		return malloc(size);
+	} 
 
-    if(size<=DSIZE)
-        asize=2*DSIZE;
-    else
-        asize=DSIZE*((size+(DSIZE)+(DSIZE-1))/DSIZE);
+	/* free block when size == 0 */
+	if (size == 0){
+		free(oldptr);
+		return 0;
+	} 
 
-    if(ptr!=NULL)
-    {
-        size_t oldsize=GET_PAYLOAD(ptr);
-        if(oldsize<size)
-        {
-            
-            void* newptr=recoalesce(ptr,asize);
-            if(newptr==NULL)
-            {
-                newptr=mm_malloc(asize);
-                memcpy(newptr,ptr,oldsize);
-                mm_free(ptr);
-                return newptr;
-            }
-            else
-            {
-                return newptr;
-            }
-        }
-        else if(oldsize==size)
-        {
-            return ptr;
-        }
-        else
-        {
-            return ptr;
-        }
-    }
-    return NULL;
+	/* malloc a new block and copy original data */
+	newptr = malloc(size);
+    if(!newptr) 
+    	return 0;
+    oldsize = GET_SIZE(HDRP(oldptr));
+    if(size < oldsize)
+        oldsize = size;
+    memcpy(newptr, oldptr, oldsize);
+    free(oldptr);
+
+    return newptr;
 }
 
 
