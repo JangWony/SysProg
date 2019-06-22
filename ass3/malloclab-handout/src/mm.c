@@ -208,7 +208,7 @@ void mm_free(void *ptr)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc(void *oldptr, size_t size)
 {
     size_t oldsize;
 	void *newptr;
