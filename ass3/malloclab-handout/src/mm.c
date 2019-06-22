@@ -1,3 +1,14 @@
+/*
+ * mm-naive.c - The fastest, least memory-efficient malloc package.
+ * 
+ * In this naive approach, a block is allocated by simply incrementing
+ * the brk pointer.  A block is pure payload. There are no headers or
+ * footers.  Blocks are never coalesced or reused. Realloc is
+ * implemented directly using mm_malloc and mm_free.
+ *
+ * NOTE TO STUDENTS: Replace this header comment with your own header
+ * comment that gives a high level description of your solution.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -9,31 +20,18 @@
 
 /*********************************************************
  * NOTE TO STUDENTS: Before you do anything else, please
- * provide your team information in below _AND_ in the
- * struct that follows.
- *
- * === User information ===
- * Group: 
- * User 1: 
- * SSN: X
- * User 2: 
- * SSN: X
- * === End User Information ===
+ * provide your team information in the following struct.
  ********************************************************/
 team_t team = {
-    /* Group name */
-    "Malloc_me_baby",
+    /* Team name */
+    "Nightcore rock",
     /* First member's full name */
-    "Hjalti Leifsson",
+    "Yin-Hsun, Huang",
     /* First member's email address */
-    "Hjaltil13@ru.is",
+    "thomashuang@iis.sinica.edu.tw",
     /* Second member's full name (leave blank if none) */
     "",
     /* Second member's email address (leave blank if none) */
-    "",
-    /* Leave blank */
-    "",
-    /* Leave blank */
     ""
 };
 
@@ -46,56 +44,123 @@ team_t team = {
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
-// Shorthand for struct header
-typedef struct header blockHeader;
+/* Basic constants and macros */
+#define WSIZE 4
+#define DSIZE 8
+#define CHUNKSIZE (1<<12)
 
-// The header in each block is a struct
-struct header {
+#define MAX(x, y) ((x) > (y)? (x) : (y))
+
+/* Pack a size and allocated bit into a word */
+#define PACK(size, alloc) ((size) | (alloc))
+
+/* Read and write a word at address p */
+#define GET(p)       (*(unsigned int *)(p))
+#define PUT(p, val)  (*(unsigned int *)(p) = (val))
+
+/* read the size and allocated fields from address p */
+#define GET_SIZE(p)  (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
+
+/* Given block ptr bp, compute address of its header and footer */
+#define HDRP(bp)     ((char *)(bp) - WSIZE)
+#define FTRP(bp)     ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+
+/* Given block ptr bp, compute address of next and previous blocks */
+#define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
+#define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
+
+/* Caculate head_listp from mem_lo() */
+#define HEAD_LISTP    ( ((char *)mem_heap_lo() + DSIZE))
+/* private function to extend heap size*/
+static void *coalesce(void* bp)
+{
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
+
+    if (prev_alloc && next_alloc) {
+        return bp;
+    }
+
+    else if (prev_alloc && !next_alloc) {
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+
+    else if (!prev_alloc && next_alloc) {
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+    else {
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + 
+                    GET_SIZE(HDRP(PREV_BLKP(bp)));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        bp = PREV_BLKP(bp);
+    }
+
+
+    return bp;
+}
+
+static void *extend_heap(size_t words)
+{
+    char *bp;
     size_t size;
-    blockHeader *next_p;
-    blockHeader *prev_p;
-};
 
-#define BLOCK_HEADER_SIZE ALIGN(sizeof(blockHeader))
+    /* Allocate an aligned number of words */
+    size = (word % 2) ? (word+1) * WSIZE : words * WSIZE;
+    if((bp = mem_sbrk(size)) == (void *)-1)
+        return NULL;
 
-/*Additional Macros defined*/
-#define WSIZE 4                                                                             //Size of a word
-#define DSIZE 8                                                                             //Size of a double word
-#define CHUNKSIZE 16                                                                        //Initial heap size
-#define OVERHEAD 24                                                                         //The minimum block size
-#define MAX(x ,y)  ((x) > (y) ? (x) : (y))                                                  //Finds the maximum of two numbers
-#define PACK(size, alloc)  ((size) | (alloc))                                               //Put the size and allocated byte into one word
-#define GET(p)  (*(size_t *)(p))                                                            //Read the word at address p
-#define PUT(p, value)  (*(size_t *)(p) = (value))                                           //Write the word at address p
-#define GET_SIZE(p)  (GET(p) & ~0x7)                                                        //Get the size from header/footer
-#define GET_ALLOC(p)  (GET(p) & 0x1)                                                        //Get the allocated bit from header/footer
-#define HDRP(bp)  ((void *)(bp) - WSIZE)                                                    //Get the address of the header of a block
-#define FTRP(bp)  ((void *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)                               //Get the address of the footer of a block
-#define NEXT_BLKP(bp)  ((void *)(bp) + GET_SIZE(HDRP(bp)))                                  //Get the address of the next block
-#define PREV_BLKP(bp)  ((void *)(bp) - GET_SIZE(HDRP(bp) - WSIZE))                          //Get the address of the previous block
-#define NEXT_FREEP(bp)  (*(void **)(bp + DSIZE))                                            //Get the address of the next free block
-#define PREV_FREEP(bp)  (*(void **)(bp))                                                    //Get the address of the previous free block
+    /* Initialize free block header/footer and the epilogue header */
+    PUT(HDRP(bp), PACK(size, 0));
+    PUT(FTRP(bp), PACK(size, 0));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
 
-// Helper functions
-void *first_fit(size_t size);
-static void place(blockHeader *bp, size_t size);
+    return coalesce(bp);
+}
 
 /* 
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
 {
-    // Allocate space for the size of the header.
-    blockHeader *bp = mem_sbrk(BLOCK_HEADER_SIZE);
-    
-    bp->size = BLOCK_HEADER_SIZE;
-    
-    // Set its next and prev to itself,
-    // So we get a circular list right away
-    bp->next_p = bp;
-    bp->prev_p = bp;
+    char *heap_listp;
+    if((heap_listp = mem_sbrk(4*WSIZE) == (void *)-1)
+        return -1;
+    PUT(head_listp, 0);
+    PUT(head_listp + (1*WSIZE), PACK(DSIZE, 1));
+    PUT(head_listp + (2*WSIZE), PACK(DSIZE, 1));
+    PUT(head_listp + (3*WSIZE), PACK(0, 1));
 
+    if (extend_heap(CHUNKSIZE/WSIZE) == NULL)
+        return -1;
     return 0;
+}
+
+static void place(void *bp, size_t asize)
+{
+    size_t o_size = GET_SIZE(HDRP(bp));
+    if (o_size < asize + 8) {
+        PUT(HDRP(bp), PACK(osize, 1));
+        PUT(FTRP(bp), PACK(osize, 1));
+    }
+
+    else {
+        PUT(HDRP(bp), PACK(asize, 1));
+        PUT(FTRP(bp), PACK(asize, 1));
+
+        /* This access method induced additional pointer operation */
+        void *nbp = NEXT_BLKP(bp);
+        PUT(HDRP(nbp), PACK(osize-asize, 0));
+        PUT(FTRP(nbp), PACK(osize-asize, 0));
+    }
 }
 
 /* 
@@ -104,85 +169,41 @@ int mm_init(void)
  */
 void *mm_malloc(size_t size)
 {
-    // Since we need extra space for the block header,
-    // add the size of the block header to the size param,
-    // and align the result.
-    int newsize = ALIGN(BLOCK_HEADER_SIZE + size);
+    size_t asize;
+    size_t extendsize;
+    char *bp;
 
-    // Ignore spurious requests
-    if(size == 0){
+    if (size == 0)
         return NULL;
+
+    if (size <= DSIZE)
+        asize = 2*DSIZE;
+    else
+        asize = ALIGN(size + SIZE_T_SIZE);
+
+    /* Search the free list for a fit */
+    if ((bp = find_fit(asize)) != NULL) {
+        place(bp, asize);
+        return bp;
     }
 
-    // Find the first block that is big enough.
-    blockHeader *bp = first_fit(newsize);
-
-    if(bp == NULL) { // No block was found, request more heap memory.
-        
-        bp = mem_sbrk(newsize);
-    
-        if((long)bp == -1){
-            // If no more heap memory, shut down.
-            return NULL;
-        }
-        else {
-            // Found heap memory, set the size to newsize
-            // and mark it as allocated
-            bp->size = newsize | 1;
-        }
-    }
-    else { // A block was found.
-        place(bp, newsize); 
-    }
-    return (char *)bp + BLOCK_HEADER_SIZE;    
-}
-
-static void place(blockHeader *bp, size_t size){
-    //printf("The total size is: %d\n", bp->size + size );
-
-    bp->size |= 1;
-    bp->prev_p->next_p = bp->next_p;
-    bp->next_p->prev_p = bp->prev_p;
-}
-
-void *first_fit(size_t size)
-{
-    // Set a dummy pointer to the first block on the list.
-    blockHeader *p = ((blockHeader *)mem_heap_lo())->next_p;
-
-    // Since we have a circular list, advance the list
-    // until we hit a block whose size is greater
-    // than the needed size, and not the first 
-    // block on the list.
-    while(p != mem_heap_lo() && (p->size < size)){
-        p = p->next_p;
-    }
-
-    // Make sure we are not returning the first item on the list.
-    if(p != mem_heap_lo()){
-        return p;
-    } else {
+    extendsize = MAX(asize,CHUNKSIZE);
+    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
         return NULL;
-    }
+    place(bp, asize);
+    return bp;
 }
+
 /*
- * 
+ * mm_free - Freeing a block does nothing.
  */
-void mm_free(void *ptr)
+void mm_free(void *bp)
 {
+    size_t size = GET_SIZE(HDRP(bp));
 
-    if(!ptr){
-        return;
-    }
-    blockHeader *bp = ptr-BLOCK_HEADER_SIZE;
-    blockHeader *head = mem_heap_lo();
-
-    bp->size &= ~1;
-    bp->next_p = head->next_p;
-    bp->prev_p = head;
-    head->next_p = bp;
-    bp->next_p->prev_p = bp;
-
+    PUT(HDRP(bp), PACK(size,0));
+    PUT(FTRP(bp), PACK(size,0));
+    coalesce(bp);
 }
 
 /*
@@ -190,19 +211,30 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    blockHeader *bp = ptr - BLOCK_HEADER_SIZE;
-    void *newptr = mm_malloc(size);
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
     
-    if(newptr == NULL)
-    {
-        return NULL;
-    }
-    int copySize = bp->size - BLOCK_HEADER_SIZE;
-    if(size < copySize)
-    {
-        copySize = size;
-    }
-    memcpy(newptr, ptr, copySize);
-    mm_free(ptr);
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+      return NULL;
+    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    if (size < copySize)
+      copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
     return newptr;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
