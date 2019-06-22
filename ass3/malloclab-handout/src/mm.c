@@ -210,19 +210,49 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
+    if(ptr==NULL) return mm_malloc(size);
+    if(size==0)
+    { 
+        mm_free(ptr);
+        return ptr;
+    }
+
+    size_t asize=0;
+
+    if(size<=DSIZE)
+        asize=2*DSIZE;
+    else
+        asize=DSIZE*((size+(DSIZE)+(DSIZE-1))/DSIZE);
+
+    if(ptr!=NULL)
+    {
+        size_t oldsize=GET_PAYLOAD(ptr);
+        if(oldsize<size)
+        {
+            
+            void* newptr=recoalesce(ptr,asize);
+            if(newptr==NULL)
+            {
+                newptr=mm_malloc(asize);
+                memcpy(newptr,ptr,oldsize);
+                mm_free(ptr);
+                return newptr;
+            }
+            else
+            {
+                return newptr;
+            }
+        }
+        else if(oldsize==size)
+        {
+            return ptr;
+        }
+        else
+        {
+            return ptr;
+        }
+    }
+    return NULL;
 }
 
 
