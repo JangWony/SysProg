@@ -229,7 +229,7 @@ void *mm_realloc(void *ptr, size_t size)
     }
                                                                      
     /* Copy the old data. */
-    oldsize = *SIZE_PTR(oldptr);
+    oldsize = *((size_t*)(((char*)(oldptr)) - SIZE_T_SIZE));
     if(size < oldsize) oldsize = size;
     memcpy(newptr, oldptr, oldsize);
                                
