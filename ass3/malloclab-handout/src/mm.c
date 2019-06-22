@@ -165,32 +165,27 @@ static void place(void *bp, size_t asize){
  */
 void *mm_malloc(size_t size)
 {
-    size_t blksize = BLK_SIZE(size);    /* Compute the block size needed */
-    size_t esize; 						/* Size to extend heap if needed */
+    size_t asize;
+    size_t extendsize;
     char *bp;
 
-    /* init heap if heap is empty */
-    if (heap_listp == 0) 
-    	mm_init();
+    if(size==0)
+        return NULL;
+    
+    if(size < DSIZE)
+        asize = 2 * DSIZE;
+    else
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
-    /* ignore spurious requests */
-    if (size == 0)
-    	return NULL;
+    if((bp = find_fit(asize)) != NULL ){
+        place(bp , asize);
+        return bp;
+    }
 
-    /* search for a fit, place in it if found */
-    if ((bp = find_fit(blksize)) != NULL) {  
-    	place(bp, blksize);                  
-    } 
-
-    /* No fit found. Get more memory and place the block */
-    /* If heap is small, only double the heapsize; else use CHUNKSIZE */
-    else { 
-	    esize = MAX(blksize, MIN(mem_heapsize(), CHUNKSIZE)); 
-	    if ((bp = extend_heap(esize/WSIZE)) == NULL)  
-	    	return NULL;                                   
-	    place(bp, blksize);  
-	}
-
+    extendsize = MAX(asize, CHUNKSIZE);
+    if((bp = extend_heap(extendsize / WSIZE)) == NULL)
+        return NULL;
+    place(bp, asize);
     return bp;
 }
 
@@ -199,13 +194,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-    if (ptr == 0) 
-    	return;
-
     size_t size = GET_SIZE(HDRP(ptr));
-
-	if (heap_listp == 0) 
-		mm_init(); 
 
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
@@ -215,32 +204,20 @@ void mm_free(void *ptr)
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
-void *mm_realloc(void *oldptr, size_t size)
+void *mm_realloc(void *ptr, size_t size)
 {
-    size_t oldsize;
-	void *newptr;
-
-	/* no old ptr, just malloc */
-	if (oldptr == NULL) {
-		return malloc(size);
-	} 
-
-	/* free block when size == 0 */
-	if (size == 0){
-		free(oldptr);
-		return 0;
-	} 
-
-	/* malloc a new block and copy original data */
-	newptr = malloc(size);
-    if(!newptr) 
-    	return 0;
-    oldsize = GET_SIZE(HDRP(oldptr));
-    if(size < oldsize)
-        oldsize = size;
-    memcpy(newptr, oldptr, oldsize);
-    free(oldptr);
-
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
+    
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+      return NULL;
+    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    if (size < copySize)
+      copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
     return newptr;
 }
 
