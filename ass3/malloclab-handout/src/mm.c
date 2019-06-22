@@ -80,7 +80,7 @@ int mm_init(void)
     heap_listp += (2*WSIZE);
 
     /* Extend the empty heap with a free block of CHUNKSIZE bytes */
-    if(extend_heap(CHUNKSIZE/WSIZE*4) == NULL)
+    if(extend_heap(CHUNKSIZE/WSIZE) == NULL)
         return -1;
 
     return 0;
@@ -182,7 +182,11 @@ void *mm_malloc(size_t size)
         return bp;
     }
 
-    extendsize = MAX(asize, CHUNKSIZE);
+    extendsize=asize;
+    if(extendsize<=DSIZE)
+        extendsize=2*DSIZE;
+    else
+        extendsize=DSIZE*((extendsize+(DSIZE)+(DSIZE-1))/DSIZE);
     if((bp = extend_heap(extendsize / WSIZE)) == NULL)
         return NULL;
     place(bp, asize);
