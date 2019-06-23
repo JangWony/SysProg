@@ -363,7 +363,6 @@ static void addToFreeList(void *bp)
 
 static inline void *actualAddressFromOffset(int offset)
 {
-	dbg_printf("Offset is : %d\n",offset);
 
 	if(offset==0)
 		return NULL;
@@ -374,7 +373,6 @@ static inline void *actualAddressFromOffset(int offset)
 /* Given an address, convert it to an offset */
 static inline int offsetFromActualAddress(void *bp)
 {
-	dbg_printf("Offset from actual address called..\n");
 
 	if(!bp)
 		return 0;
