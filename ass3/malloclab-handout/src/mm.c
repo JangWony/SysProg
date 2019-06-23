@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -159,20 +160,25 @@ static void *coalesce(void *bp){
 
 static void *find_fit(size_t asize){
     void *bp;
+    void *temploc;
+    temploc = NULL;
+    unsigned int temploc_size=INT_MAX;
+    unsigned int curr_size=INT_MAX;
     int index = indexOfFreeListArray(asize);
 
     while(index < FREE_LIST_ARRAY_SIZE)
 	{
-		for (bp = freeListArray[index]; bp && GET_SIZE(HDRP(bp)) > 0; 
+		for (bp = freeListArray[index]; (curr_size = bp && GET_SIZE(HDRP(bp))) > 0; 
 				bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
-			if (asize <= GET_SIZE(HDRP(bp)) && !GET_ALLOC(HDRP(bp))){
-				return bp;
+			if (asize <= curr_size && !GET_ALLOC(HDRP(bp)) && temploc_size > curr_size){
+                temploc = bp;
+                temploc_size = curr_size;
 			}
 		}
 		index ++;
 	}
 
-	return NULL;
+	return temploc;
 }
 
 static void place(void *bp, size_t asize){
