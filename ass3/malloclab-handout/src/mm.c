@@ -54,6 +54,12 @@
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp)- WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
 
+// add
+#define GET_NEXT(bp)            (*(void **)(bp + DSIZE))
+#define GET_PREV(bp)            (*(void **)bp)
+#define SET_NEXT(bp, ptr)       (GET_NEXT(bp) = ptr)
+#define SET_PREV(bp, ptr)       (GET_PREV(bp) = ptr)
+
 
 
 /* Global var */
