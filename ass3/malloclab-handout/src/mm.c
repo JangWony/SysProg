@@ -15,6 +15,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include <limits.h>
+
 #include "mm.h"
 #include "memlib.h"
 
