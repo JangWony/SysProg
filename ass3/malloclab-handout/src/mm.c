@@ -54,6 +54,9 @@
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp)- WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
 
+#define NEXT_PTR(bp)   ((char *)(bp) + WSIZE)
+#define PREV_PTR(bp)   ((char *)(bp))
+
 #define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
 
 #define FREE_LIST_ARRAY_SIZE 16
