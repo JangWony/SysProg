@@ -57,13 +57,56 @@
 
 
 /* Global var */
-char *heap_listp;
+char *heap_listp = 0;
+char *heap_freep = 0;
+
+
+
 
 /* functions */
 static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
+static void printblock(void *bp); 
+static void checkheap(int verbose);
+static void checkblock(void *bp);
+
+static  void add_free_list_lifo(void *ptr)
+{
+    void *head = heap_freep;
+
+    /*Add the free node at the head */
+    SET_NEXT(ptr, head);
+    SET_PREV(ptr, NULL);
+    if (head != NULL)
+        SET_PREV(head, ptr);
+    heap_freep = ptr;
+
+}
+
+/*Delete a block from the free list.-- eq. to allocating memory
+ * Implementing for LIFO now*/
+static  void delete_free_list(void *ptr)
+{
+    void *next = GET_NEXT(ptr);
+    void *prev = GET_PREV(ptr);
+
+    // Deleting root ptr node-- in lifo strategy always the case
+    if (prev == NULL) {
+        heap_freep = next;
+        if (next != NULL) {
+            SET_PREV(next, NULL);
+        }
+    } else {
+        SET_NEXT(prev, next);
+        if (next != NULL) {
+            SET_PREV(next, prev);
+        }
+    }
+}
+
+
 
 /* 
  * mm_init - initialize the malloc package.
@@ -110,12 +153,14 @@ static void *coalesce(void *bp){
 
 
     if (prev_alloc && next_alloc) {             // case 1
-        return bp;
+        return add_free_list_lifo(bp);
     }
     else if (prev_alloc && !next_alloc) {       // case 2   
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        delete_free_list(NEXT_BLKP(bp));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
+        add_free_list_lifo(bp);
     } else if (!prev_alloc && next_alloc) {     // case 3            
         size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
@@ -125,7 +170,8 @@ static void *coalesce(void *bp){
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
+        delete_free_list(NEXT_BLKP(bp));
+        //bp = PREV_BLKP(bp);
     }
     
     return bp;
