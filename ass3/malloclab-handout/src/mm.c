@@ -46,6 +46,7 @@
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
+#define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
 
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
@@ -169,6 +170,9 @@ void *mm_malloc(size_t size)
     size_t extendsize;
     char *bp;
 
+    if(heap_listp==0)
+        mm_init();
+
     if(size==0)
         return NULL;
     
@@ -197,8 +201,14 @@ void mm_free(void *ptr)
     if(!ptr) return ; 
     size_t size = GET_SIZE(HDRP(ptr));
 
-    PUT(HDRP(ptr), PACK(size, 0));
-    PUT(FTRP(ptr), PACK(size, 0));
+    if(heap_listp==0)
+        mm_init();
+
+    PUT(HDRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
+    PUT(FTRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
+
+    PUT(HDRP(NEXT_BLKP(ptr)),GET(HDRP(NEXT_BLKP(ptr)))&~2);
+
     coalesce(ptr);
 }
 
@@ -208,19 +218,36 @@ void mm_free(void *ptr)
 void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-    return newptr;
-}
+    size_t oldsize;
+	void *newptr;
+
+	/* If size == 0 then this is just free, and we return NULL. */
+	if(size == 0) {
+		mm_free(oldptr);
+		return 0;
+	}
+
+	/* If oldptr is NULL, then this is just malloc. */
+	if(oldptr == NULL) {
+		return mm_malloc(size);
+	}
+
+	newptr = mm_malloc(size);
+
+	/* If realloc() fails the original block is left untouched  */
+	if(!newptr) {
+		return 0;
+	}
+
+	/* Copy the old data. */
+	oldsize = GET_SIZE(HDRP(oldptr));
+	if(size < oldsize) oldsize = size;
+	memcpy(newptr, oldptr, oldsize);
+
+	/* Free the old block. */
+	mm_free(oldptr);
+
+	return newptr;
 
 
 
