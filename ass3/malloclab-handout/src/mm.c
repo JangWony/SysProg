@@ -161,7 +161,7 @@ int mm_init(void) {
 /*
  * malloc
  */
-void *malloc (size_t size) {
+void *mm_malloc (size_t size) {
 	size_t asize;      /* Adjusted block size */
 	size_t extendsize; /* Amount to extend heap if no fit */
 	char *bp;      
@@ -198,7 +198,7 @@ void *malloc (size_t size) {
 /*
  * free
  */
-void free (void *bp) {
+void mm_free (void *bp) {
 	/* $end mmfree */
 	if(bp == 0) 
 		return;
@@ -229,7 +229,7 @@ void free (void *bp) {
 /*
  * realloc - you may want to look at mm-naive.c
  */
-void *realloc(void *oldptr, size_t size) {
+void *mm_realloc(void *oldptr, size_t size) {
 
 	size_t oldsize;
 	void *newptr;
@@ -262,21 +262,6 @@ void *realloc(void *oldptr, size_t size) {
 
 	return newptr;
 
-}
-
-/*
- * calloc - you may want to look at mm-naive.c
- * This function is not tested by mdriver, but it is
- * needed to run the traces.
- */
-void *calloc (size_t nmemb, size_t size) {
-	size_t bytes = nmemb * size;
-	void *newptr;
-
-	newptr = malloc(bytes);
-	memset(newptr, 0, bytes);
-
-	return newptr;
 }
 
 
