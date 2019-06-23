@@ -240,6 +240,7 @@ void *mm_realloc(void *ptr, size_t size)
 	free(oldptr);
 
 	return newptr;    
+}
 
 
 
