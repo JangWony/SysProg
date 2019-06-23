@@ -170,7 +170,7 @@ static void *coalesce(void *bp){
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp))) + 4*WSIZE;
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        delete_free_list(bp);
+        delete_free_list(NEXT_BLKP(bp));
     }
     
     return bp;
@@ -282,7 +282,7 @@ void *mm_realloc(void *ptr, size_t size)
 
     oldsize = GET_SIZE(HDRP(ptr));
     if(size < oldsize) oldsize = size;
-        memcpy(newptr, ptr, oldsize);
+    memcpy(newptr, ptr, oldsize);
 
     mm_free(ptr);
 
