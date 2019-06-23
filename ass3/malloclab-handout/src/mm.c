@@ -54,12 +54,6 @@
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp)- WSIZE)))
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
 
-// add
-#define GET_NEXT(bp)            (*(void **)(bp + DSIZE))
-#define GET_PREV(bp)            (*(void **)bp)
-#define SET_NEXT(bp, ptr)       (GET_NEXT(bp) = ptr)
-#define SET_PREV(bp, ptr)       (GET_PREV(bp) = ptr)
-
 
 
 /* Global var */
@@ -75,7 +69,7 @@ static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
 
-static void add_free_list_lifo(void *ptr)
+static  void add_free_list_lifo(void *ptr)
 {
     void *head = heap_freep;
 
@@ -156,25 +150,22 @@ static void *coalesce(void *bp){
 
 
     if (prev_alloc && next_alloc) {             // case 1
-        add_free_list_lifo(bp);
+        return bp;
     }
     else if (prev_alloc && !next_alloc) {       // case 2   
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + WSIZE * 2;
-        delete_free_list(NEXT_BLKP(bp));
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
-        add_free_list_lifo(bp);
     } else if (!prev_alloc && next_alloc) {     // case 3            
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + WSIZE * 2;
+        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     } else {                                    // case 4   
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp))) + 4 * WSIZE;
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        delete_free_list(NEXT_BLKP(bp));
-        //bp = PREV_BLKP(bp);
+        bp = PREV_BLKP(bp);
     }
     
     return bp;
@@ -226,7 +217,7 @@ void *mm_malloc(size_t size)
         return NULL;
     
     if(size < DSIZE)
-        asize = 4 * DSIZE;
+        asize = 2 * DSIZE;
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
@@ -256,10 +247,8 @@ void mm_free(void *ptr)
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
 
-    if(heap_freep == NULL)
-        add_free_list_lifo(ptr);
-    else
-        coalesce(ptr);
+
+    coalesce(ptr);
 }
 
 /*
