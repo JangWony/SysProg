@@ -146,12 +146,14 @@ static void *coalesce(void *bp){
     } else {                                    // case 4   
         deleteFromFreeList(NEXT_BLKP(bp));	
 		deleteFromFreeList(PREV_BLKP(bp));
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
         bp = PREV_BLKP(bp);
     }
     
+    addToFreeList(bp);
+
     return bp;
 }
 
