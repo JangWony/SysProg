@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -46,7 +47,6 @@
 
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
-#define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
 
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
@@ -71,10 +71,6 @@ static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
-
-static void printblock(void *bp); 
-static void checkheap(int verbose);
-static void checkblock(void *bp);
 
 static  void add_free_list_lifo(void *ptr)
 {
@@ -182,13 +178,18 @@ static void *coalesce(void *bp){
 
 static void *find_fit(size_t asize){
     void *bp;
-
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)){
-        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp;
-        }
+    void *temploc;
+    temploc = NULL;
+    unsigned int temploc_size=INT_MAX;
+    unsigned int curr_size=INT_MAX;
+    for (bp = heap_listp; (curr_size = GET_SIZE(HDRP(bp))) > 0; bp = NEXT_BLKP(bp)) {
+		if( !GET_ALLOC(HDRP(bp)) && ( asize <= curr_size ) && temploc_size >  curr_size ) {
+			temploc = bp;
+			temploc_size = curr_size;
+		}
     }
-    return NULL;
+
+    return temploc;
 }
 
 static void place(void *bp, size_t asize){
@@ -293,71 +294,6 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
 }
 
-static void printblock(void *bp) 
-{
-    size_t hsize, halloc, fsize, falloc;
-
-    checkheap(0);
-    hsize = GET_SIZE(HDRP(bp));
-    halloc = GET_ALLOC(HDRP(bp));  
-    fsize = GET_SIZE(FTRP(bp));
-    falloc = GET_ALLOC(FTRP(bp));  
-
-    if (hsize == 0) {
-	printf("%p: EOL\n", bp);
-	return;
-    }
-
-    /*  printf("%p: header: [%p:%c] footer: [%p:%c]\n", bp, 
-	hsize, (halloc ? 'a' : 'f'), 
-	fsize, (falloc ? 'a' : 'f')); */
-}
-
-static void checkblock(void *bp) 
-{
-    if ((size_t)bp % 8)
-	printf("Error: %p is not doubleword aligned\n", bp);
-    if (GET(HDRP(bp)) != GET(FTRP(bp)))
-	printf("Error: header does not match footer\n");
-}
-
-/* 
- * checkheap - Minimal check of the heap for consistency 
- */
-
-/*
- * mm_check
- * Checks:
- * 1. if blocks are aligned.
- * 1. if it is in the heap.
- * 2. if the list is aligned.
- * 3. Print the address of that block.
- * 4. Print the previous and next free block.
- * 5. Get next block in free list.
- * 6. Print # of blocks in linked list.
- */
-void checkheap(int verbose) 
-{
-    char *bp = heap_listp;
-
-    if (verbose)
-	printf("Heap (%p):\n", heap_listp);
-
-    if ((GET_SIZE(HDRP(heap_listp)) != DSIZE) || !GET_ALLOC(HDRP(heap_listp)))
-	printf("Bad prologue header\n");
-    checkblock(heap_listp);
-
-    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-	if (verbose) 
-	    printblock(bp);
-	checkblock(bp);
-    }
-
-    if (verbose)
-	printblock(bp);
-    if ((GET_SIZE(HDRP(bp)) != 0) || !(GET_ALLOC(HDRP(bp))))
-	printf("Bad epilogue header\n");
-}
 
 
 
