@@ -194,7 +194,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-    if(ptr == 0)
+    if(!ptr)
         return;
     size_t size = GET_SIZE(HDRP(ptr));
 
