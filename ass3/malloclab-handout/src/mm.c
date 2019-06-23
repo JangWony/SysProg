@@ -67,7 +67,7 @@ char *heap_freep = 0;
 
 
 /* functions */
-static void *extend_heap(size_t size);
+static void *extend_heap(size_t words);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
@@ -221,7 +221,7 @@ void *mm_malloc(size_t size)
     if(size==0)
         return NULL;
     
-    if(size < DSIZE)
+    if(size <= DSIZE)
         asize = 4 * DSIZE;
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
@@ -243,7 +243,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-    if(!ptr) return ; 
+    if(ptr==0) return ; 
     size_t size = GET_SIZE(HDRP(ptr));
 
     if(heap_listp==0)
@@ -265,30 +265,25 @@ void *mm_realloc(void *ptr, size_t size)
     size_t oldsize;
     void *newptr;
 
-    /* If size == 0 then this is just free, and we return NULL. */
     if(size == 0) {
         mm_free(ptr);
         return 0;
     }
 
-    /* If oldptr is NULL, then this is just malloc. */
     if(ptr == NULL) {
 	    return mm_malloc(size);
     }
 
     newptr = mm_malloc(size);
 
-    /* If realloc() fails the original block is left untouched  */
     if(!newptr) {
 	    return 0;
     }
 
-    /* Copy the old data. */
     oldsize = GET_SIZE(HDRP(ptr));
     if(size < oldsize) oldsize = size;
         memcpy(newptr, ptr, oldsize);
 
-    /* Free the old block. */
     mm_free(ptr);
 
     return newptr;
