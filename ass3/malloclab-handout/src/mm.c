@@ -147,7 +147,7 @@ static void *extend_heap(size_t words){
 
 
 static void *coalesce(void *bp){
-    size_t prev_alloc = GET_ALLOC(HDRP(PREV_BLKP(bp)));
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
@@ -163,7 +163,7 @@ static void *coalesce(void *bp){
         add_free_list_lifo(bp);
     } else if (!prev_alloc && next_alloc) {     // case 3    
         bp = PREV_BLKP(bp);        
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + 2*WSIZE;
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + WSIZE * 2;
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
     } else {                                    // case 4   
