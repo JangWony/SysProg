@@ -14,7 +14,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
-#include <limits.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -23,181 +22,343 @@
  * NOTE TO STUDENTS: Before you do anything else, please
  * provide your team information in the following struct.
  ********************************************************/
+team_t team = {
+    /* Team name */
+    "ateam",
+    /* First member's full name */
+    "Dinh Dat Thanh",
+    /* First member's email address */
+    "ddthanh@apcs.edu.vn",
+    /* Second member's full name (leave blank if none) */
+    "Vo Tran Thanh Luong",
+    /* Second member's email address (leave blank if none) */
+    "vttluong@apcs.edu.vn"
+};
 
-/* single word (4) or double word (8) alignment */
+/* alignment  must be equal to integer size */
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
+
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
+// My additional Macros
+#define WSIZE     4          // word and header/footer size (bytes)
+#define DSIZE     8          // double word size (bytes)
+#define INITCHUNKSIZE (1<<6)
+#define CHUNKSIZE (1<<12)//+(1<<7) 
 
-/* Additional Macros */
-#define WSIZE 4
-#define DSIZE 8
-#define CHUNKSIZE (1<<12)
+#define LIST    20      
+#define REALLOC_BUFFER  (1<<7)    
 
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y)) 
+#define MIN(x, y) ((x) < (y) ? (x) : (y)) 
 
+// Pack a size and allocated bit into a word
 #define PACK(size, alloc) ((size) | (alloc))
 
-#define GET(p)      (*(unsigned int *)(p))
-#define PUT(p, val) (*(unsigned int *)(p) = (val))
+// Read and write a word at address p 
+#define GET(p)            (*(unsigned int *)(p))
+#define PUT(p, val)       (*(unsigned int *)(p) = (val) | GET_TAG(p))
+#define PUT_NOTAG(p, val) (*(unsigned int *)(p) = (val))
 
-#define GET_SIZE(p) (GET(p) & ~0x7)
+// Store predecessor or successor pointer for free blocks 
+#define SET_PTR(p, ptr) (*(unsigned int *)(p) = (unsigned int)(ptr))
+
+// Read the size and allocation bit from address p 
+#define GET_SIZE(p)  (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
-#define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
+#define GET_TAG(p)   (GET(p) & 0x2)
+#define SET_RATAG(p)   (GET(p) |= 0x2)
+#define REMOVE_RATAG(p) (GET(p) &= ~0x2)
 
-#define HDRP(bp) ((char *)(bp) - WSIZE)
-#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+// Address of block's header and footer 
+#define HDRP(ptr) ((char *)(ptr) - WSIZE)
+#define FTRP(ptr) ((char *)(ptr) + GET_SIZE(HDRP(ptr)) - DSIZE)
 
-#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp)- WSIZE)))
-#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
+// Address of  next and previous blocks 
+#define NEXT_BLKP(ptr) ((char *)(ptr) + GET_SIZE((char *)(ptr) - WSIZE))
+#define PREV_BLKP(ptr) ((char *)(ptr) - GET_SIZE((char *)(ptr) - DSIZE))
 
-#define NEXT_PTR(bp)   ((char *)(bp) + WSIZE)
-#define PREV_PTR(bp)   ((char *)(bp))
+// Address of free block's predecessor and successor entries 
+#define PRED_PTR(ptr) ((char *)(ptr))
+#define SUCC_PTR(ptr) ((char *)(ptr) + WSIZE)
 
-#define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
+// Address of free block's predecessor and successor on the segregated list 
+#define PRED(ptr) (*(char **)(ptr))
+#define SUCC(ptr) (*(char **)(SUCC_PTR(ptr)))
 
-#define FREE_LIST_ARRAY_SIZE 16
+// End of my additional macros
 
-/* Global var */
-static char *heap_listp=0;
-static char **freeListArray = NULL;
 
-/* functions */
+// Global var
+void *free_lists[LIST]; 
+
+
+// Helper Functions
 static void *extend_heap(size_t size);
-static void *coalesce(void *bp);
-static void *find_fit(size_t asize);
-static void place(void *bp, size_t asize);
+static void *coalesce(void *ptr);
+static void *place(void *ptr, size_t asize);
+static void insert_node(void *ptr, size_t size);
+static void delete_node(void *ptr);
 
-static inline void *actualAddressFromOffset(int offset);
-static inline int offsetFromActualAddress(void *bp);
-static inline int indexOfFreeListArray(int size);
 
-static void addToFreeList(void *bp);
-static void deleteFromFreeList(void *bp);
+static void *extend_heap(size_t size)
+{
+    size_t tempsize=size;
+    void * ptr= mem_sbrk(tempsize);
 
+    //not enough space
+    if(ptr == (void * ) -1)
+        return NULL;
+
+    //set header and footer infomation
+    //header
+    PUT_NOTAG(HDRP(ptr),PACK(tempsize,0));
+    //footer
+    PUT_NOTAG(FTRP(ptr),PACK(tempsize,0));
+    PUT_NOTAG(HDRP(NEXT_BLKP(ptr)),PACK(0,1));
+    //insert free node
+    insert_node(ptr,tempsize);
+
+    return coalesce(ptr);
+}
+//insert the node to the segregated free list
+static void insert_node(void * ptr, size_t size)
+{
+    int index;
+    void *next = ptr;
+    void *before = NULL;
+
+    for(index=0;index < LIST -1; index++ )
+    {
+        if(size > 1)
+        {
+            size = size >> 1;
+        }
+        else break;
+    }
+    next = free_lists[index];
+    //traverse the free list to find a position to input the node
+    while( next !=NULL && size < GET_SIZE(HDRP(next)))
+    {
+        before = next;
+        next = PRED(next);
+    }
+    if(next != NULL)
+    {
+        //insert between the list
+        if(before!= NULL)
+        {
+            SET_PTR(PRED_PTR(ptr),next);
+            SET_PTR(SUCC_PTR(next), ptr);
+            SET_PTR(PRED_PTR(before), ptr);
+            SET_PTR(SUCC_PTR(ptr), before);
+        }
+        //insert at the begining of the list
+        else
+        {
+            SET_PTR(PRED_PTR(ptr), next);
+            SET_PTR(SUCC_PTR(next), ptr);
+            SET_PTR(SUCC_PTR(ptr), NULL);
+            //update the root of the free list
+            free_lists[index]= ptr;
+        }
+    }
+    //at the end of the list
+    else
+    {
+        //at the end of the list
+        if(before!=NULL)
+        {
+            SET_PTR(PRED_PTR(ptr),NULL);
+            SET_PTR(SUCC_PTR(ptr), before);
+            SET_PTR(PRED_PTR(before),ptr);
+        }
+        //the list is empty initially at that index
+        else
+        {
+            SET_PTR(PRED_PTR(ptr),NULL);
+            SET_PTR(SUCC_PTR(ptr),NULL);
+            //update the root of free list at the index
+            free_lists[index]=ptr;
+        }
+    }
+    return;
+    
+}
+//delete the node in the segregated free list to input ( if the pointer is in the list 2, after delete and insert again in the 5th list)
+static void delete_node(void * ptr)
+{
+    int index;
+    int size= GET_SIZE(HDRP(ptr));
+
+    //select segregated list
+    while((index < LIST-1  ) && (size >1) )
+    {
+        size = size >>1;
+        index++;
+    }
+
+    //the pointer is not the head of the doubly linked list
+    if(PRED(ptr) != NULL)
+    {
+        //the pointer is not at the end of the doubly linked list
+        if(SUCC(ptr) != NULL)
+        {
+            //link the successor and predessor of the pointer
+            SET_PTR(SUCC_PTR(PRED(ptr)) , SUCC(ptr));
+            SET_PTR(PRED_PTR(SUCC(ptr)) , PRED(ptr));
+        }
+        //the pointer is at the end
+        else
+        {
+            SET_PTR(SUCC_PTR(PRED(ptr)), NULL);
+            free_lists[index] = PRED(ptr);
+        }
+    }
+    //the pointer at the beginning
+    else
+    {
+        //the list has 2 nodes
+        if(SUCC(ptr) !=NULL)
+        {
+            SET_PTR(PRED_PTR(SUCC(ptr)),NULL);
+        }
+        else
+        {
+            free_lists[index]=NULL;
+        }
+    }
+    return;
+}
+
+//expand the free block and input to the segregated free list
+static void * coalesce(void * ptr)
+{
+    //check if the prevrious block is allocated
+    size_t prev_all =GET_ALLOC(HDRP(PREV_BLKP(ptr)));
+    //check if the next block is allocated
+    size_t next_all =GET_ALLOC(HDRP(NEXT_BLKP(ptr)));
+    size_t size =GET_SIZE(HDRP(ptr));
+
+    //if the previous is reallocated, do not coalesce
+    if(GET_TAG(HDRP(PREV_BLKP(ptr))) == 1)
+        prev_all = 1;
+
+    //cannot coalesce with previous and the next block
+    if(prev_all == 1 && next_all ==1)
+        return ptr;
+
+    //can coalesce with the next block
+    if(prev_all == 1 && next_all == 0)
+    {
+        delete_node(ptr);
+        delete_node(NEXT_BLKP(ptr));
+        //the new size of the coalesce free block
+        size += GET_SIZE(HDRP(NEXT_BLKP(ptr)));
+        //update the info at the header and the footer of the new free block at the pointer
+        PUT(HDRP(ptr), PACK(size,0));
+        PUT(FTRP(ptr), PACK(size,0));
+    }
+    //coalesce with the previous block
+    else if(prev_all == 0 && next_all == 1)
+    {
+        delete_node(ptr);
+        delete_node(PREV_BLKP(ptr));
+        size+= GET_SIZE(HDRP(PREV_BLKP(ptr)));
+        ptr= PREV_BLKP(ptr);
+        PUT(HDRP(ptr), PACK(size,0));
+        PUT(FTRP(ptr), PACK(size,0));
+    }
+    //coalesce with both previous and next block
+    else if (prev_all ==0 && next_all ==0)
+    {
+        delete_node(ptr);
+        delete_node(PREV_BLKP(ptr));
+        delete_node(NEXT_BLKP(ptr));
+
+        size+= GET_SIZE(HDRP(PREV_BLKP(ptr))) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
+
+        ptr = PREV_BLKP(ptr);
+        PUT(HDRP(ptr), PACK(size,0));
+        PUT(FTRP(ptr), PACK(size,0));   
+    }
+    //insert the new free list to the segregated free list
+    insert_node(ptr,size);
+    return ptr;
+}
+
+
+//place the size in the appropriate block in the free list and decide to whether it is needed to split the block
+//return the pointer to the new allocated block
+static void * place(void * ptr, size_t asize)
+{
+    size_t size = GET_SIZE(HDRP(ptr));
+    size_t remain = size - asize;
+
+    delete_node(ptr);
+
+    if(remain <= DSIZE*2)
+    {
+        //do not split
+        PUT(HDRP(ptr), PACK(size,1));
+        PUT(FTRP(ptr), PACK(size,1));
+    }
+
+    else if(asize >= 100)
+    {
+        //split block
+        PUT(HDRP(ptr), PACK(remain,0));
+        PUT(FTRP(ptr), PACK(remain,0));
+        //put the allocated block at the end of the free block
+        PUT_NOTAG(HDRP(NEXT_BLKP(ptr)), PACK(asize,1));
+        PUT_NOTAG(FTRP(NEXT_BLKP(ptr)), PACK(asize,1));
+        //insert the remainder free block to segregated free list
+        insert_node(ptr,remain);
+        return NEXT_BLKP(ptr);
+    }
+    //put the allocated block at the beginning of the free block
+    else
+    {
+        //split block
+        PUT(HDRP(ptr), PACK(asize,1));
+        PUT(FTRP(ptr), PACK(asize,1));
+        PUT_NOTAG(HDRP(NEXT_BLKP(ptr)), PACK(remain,0));
+        PUT_NOTAG(FTRP(NEXT_BLKP(ptr)), PACK(remain,0));
+        insert_node(NEXT_BLKP(ptr),remain);
+    }
+    return ptr;
+}
 /* 
  * mm_init - initialize the malloc package.
  */
 int mm_init(void)
 {
+    int index;
+    //initialize the segregated free list NULL
+    for(index=0;index< LIST; index++)
+        free_lists[index] = NULL;
 
+    char * heap;
+    //cannot allocated the heap
+    if((long)(heap = mem_sbrk(4 * WSIZE)) == -1)
+        return  -1;
+    //padding
+    PUT_NOTAG(heap, 0);
+    //input the prologue header
+    PUT_NOTAG(heap + 1* WSIZE, PACK(DSIZE,1));
+    //prologue footer
+    PUT_NOTAG(heap + 2* WSIZE, PACK(DSIZE,1));
+    //epilogue header
+    PUT_NOTAG(heap + 3* WSIZE, PACK(0,1));
 
-    if((heap_listp = mem_sbrk((FREE_LIST_ARRAY_SIZE*DSIZE) + 4*WSIZE)) == (void *)-1)
+    if(extend_heap(INITCHUNKSIZE)==NULL)
         return -1;
-
-    freeListArray = (char **)heap_listp;
-    memset(freeListArray, 0, (FREE_LIST_ARRAY_SIZE*DSIZE));
-
-    heap_listp += (FREE_LIST_ARRAY_SIZE*DSIZE);
-
-    PUT(heap_listp, 0);                                     /* Alignment padding */
-    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1));            /* Prologue header */
-    PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1));            /* Prologue footer */
-    PUT(heap_listp + (3*WSIZE), PACK(0,3));                 /* Epilogue header */
-    heap_listp += (2*WSIZE);
-
-    /* Extend the empty heap with a free block of CHUNKSIZE bytes */
-    if(extend_heap(CHUNKSIZE/WSIZE) == NULL)
-        return -1;
-
     return 0;
 }
-
-static void *extend_heap(size_t words){
-    char *bp;
-    size_t size;
-
-    size= (words % 2) ? (words+1) * WSIZE : words * WSIZE;
-    if((long) (bp = mem_sbrk(size)) == -1)
-        return NULL;
-    
-    PUT(HDRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
-    PUT(FTRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
-    PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
-
-    return coalesce(bp);
-}
-
-
-static void *coalesce(void *bp){
-    size_t prev_alloc = GET_ALLOC_PREV_BLOCK(bp);
-    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
-    size_t size = GET_SIZE(HDRP(bp));
-
-
-    if (prev_alloc && next_alloc) {             // case 1
-        addToFreeList(bp);
-        return bp;
-    }
-    else if (prev_alloc && !next_alloc) {       // case 2   
-        deleteFromFreeList(NEXT_BLKP(bp));	
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
-        PUT(FTRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
-    } else if (!prev_alloc && next_alloc) {     // case 3  
-        deleteFromFreeList(PREV_BLKP(bp));          
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-        PUT(FTRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
-        bp = PREV_BLKP(bp);
-    } else {                                    // case 4   
-        deleteFromFreeList(NEXT_BLKP(bp));	
-		deleteFromFreeList(PREV_BLKP(bp));
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
-        bp = PREV_BLKP(bp);
-    }
-    
-    addToFreeList(bp);
-
-    return bp;
-}
-
-static void *find_fit(size_t asize){
-    void *bp;
-    
-    int index = indexOfFreeListArray(asize);
-    void *temploc;
-    temploc = NULL;
-    unsigned int temploc_size=INT_MAX;
-    unsigned int curr_size=INT_MAX;
-    while(index < FREE_LIST_ARRAY_SIZE)
-	{
-		for (bp = freeListArray[index]; bp && (curr_size = GET_SIZE(HDRP(bp))) > 0; bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
-			if ((asize <= curr_size ) && !GET_ALLOC(HDRP(bp)) && temploc_size > curr_size){
-				temploc = bp;
-			    temploc_size = curr_size;
-			}
-		}
-		index ++;
-	}
-
-	return temploc;
-}
-
-static void place(void *bp, size_t asize){
-    size_t csize = GET_SIZE(HDRP(bp));
-    deleteFromFreeList(bp);
-
-    if((csize - asize) >= (2*DSIZE)) {
-        PUT(HDRP(bp), PACK(asize, GET_ALLOC_PREV_BLOCK(bp)|1));
-        bp = NEXT_BLKP(bp);
-        PUT(HDRP(bp), PACK(csize-asize,2));
-        PUT(FTRP(bp), PACK(csize-asize,2));
-        addToFreeList(bp);
-    }
-    else{
-        PUT(HDRP(bp), PACK(csize,GET_ALLOC_PREV_BLOCK(bp)|1));
-        if(NEXT_BLKP(bp))
-			PUT(HDRP(NEXT_BLKP(bp)),(GET(HDRP(NEXT_BLKP(bp)))|2));
-    }
-}
-
 
 /* 
  * mm_malloc - Allocate a block by incrementing the brk pointer.
@@ -205,31 +366,58 @@ static void place(void *bp, size_t asize){
  */
 void *mm_malloc(size_t size)
 {
-    size_t asize;
-    size_t extendsize;
-    char *bp;
-
-    if(heap_listp==0)
-        mm_init();
-
     if(size==0)
         return NULL;
-    
-    if(size <= DSIZE)
-        asize = 2 * DSIZE;
-    else
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
-    if((bp = find_fit(asize)) != NULL ){
-        place(bp , asize);
-        return bp;
+    size_t asize ; //adjust size
+    size_t extend; //extend heap if neccessary
+    void * ptr = NULL;
+
+    //align block size
+    if( size <= DSIZE)
+    {
+        asize = 2*DSIZE;
+    }
+    else
+    {
+        asize =ALIGN(size + DSIZE);
     }
 
-    extendsize = MAX(asize, CHUNKSIZE);
-    if((bp = extend_heap(extendsize / WSIZE)) == NULL)
-        return NULL;
-    place(bp, asize);
-    return bp;
+    int index=0;
+    size_t search =asize;
+    //traverse the segregated free list
+    while(index < LIST)
+    {
+        //find the appropriate free list
+        if((index == LIST -1) || (search <= 1 && free_lists[index] != NULL))
+        {
+            ptr = free_lists[index];
+            //ignore the block with reallcation bit and find the smallest different size block
+            while(ptr !=NULL  && ((asize > GET_SIZE(HDRP(ptr)) || GET_TAG(ptr))))
+            {
+                ptr = PRED(ptr);
+            }
+            //can find the free block
+            if(ptr != NULL)
+                break;
+        }
+        search = search >>1;
+        index ++;
+    }
+    //expand the heap to allocate
+    if(ptr == NULL)
+    {
+        extend = MAX(asize,CHUNKSIZE);
+        //cannot extend the heap
+        ptr = extend_heap(extend);
+        if(ptr == NULL)
+            return NULL;
+    }
+    //place and divide block to the memory
+    ptr = place(ptr,asize);
+
+    //return pointer to the allocated block
+    return ptr;
 }
 
 /*
@@ -237,18 +425,17 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-    if(!ptr) return ; 
-    size_t size = GET_SIZE(HDRP(ptr));
-
-    if(heap_listp==0)
-        mm_init();
-
-    PUT(HDRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
-    PUT(FTRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
-
-    PUT(HDRP(NEXT_BLKP(ptr)),GET(HDRP(NEXT_BLKP(ptr)))&~2);
-
+    size_t size= GET_SIZE(HDRP(ptr));
+    //remove the reallcoted tag
+    REMOVE_RATAG(HDRP(NEXT_BLKP(ptr)));
+    //input the new info in to the block
+    PUT(HDRP(ptr), PACK(size,0));
+    PUT(FTRP(ptr), PACK(size,0));
+    //insert the node to the segregated free list
+    insert_node(ptr,size);
+    //expand the free block if possible
     coalesce(ptr);
+
 }
 
 /*
@@ -256,157 +443,75 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void *oldptr = ptr;
-    size_t oldsize;
-	void *newptr;
+    if(size == 0 )
+        return NULL;
+    void * oldptr = ptr;
+    size_t newsize =size;   //size of the new block
+    int remain; //the remain size after allocation
+    int extend; //size of heap extension 
+    int blockbuff;
 
-	/* If size == 0 then this is just free, and we return NULL. */
-	if(size == 0) {
-		mm_free(oldptr);
-		return 0;
-	}
+    //align block size
+    if( size <= DSIZE)
+    {
+        newsize = 2*DSIZE;
+    }
+    else
+    {
+        newsize =ALIGN(size + DSIZE);
+    }
+    //add overhead requirment for block size
+    newsize += REALLOC_BUFFER;
+    //calculate the block buffer
+    blockbuff = GET_SIZE(HDRP(ptr)) - newsize;
+    //not enough space
+    if(blockbuff < 0)
+    {
+        //check if the next block is free or the epilogue block
+        if(GET_ALLOC(HDRP(NEXT_BLKP(ptr)))==0 || GET_SIZE(HDRP(NEXT_BLKP(ptr))) == 0)
+        {
+            //calculate the space missing
+            remain = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr))) - newsize;
+            //not enough space
+            if(remain < 0)
+            {
+                extend = MAX ( -remain, CHUNKSIZE);
+                //can not extend the heap
+                if(extend_heap(extend) == NULL)
+                    return NULL;
+                remain += extend;
+            }
 
-	/* If oldptr is NULL, then this is just malloc. */
-	if(oldptr == NULL) {
-		return mm_malloc(size);
-	}
+            delete_node(NEXT_BLKP(ptr));
 
-	newptr = mm_malloc(size);
+            //do not split block, update the info of the current block
+            PUT_NOTAG(HDRP(ptr), PACK(newsize + remain,1));
+            PUT_NOTAG(FTRP(ptr), PACK(newsize + remain,1));
 
-	/* If realloc() fails the original block is left untouched  */
-	if(!newptr) {
-		return 0;
-	}
+        }
+        else
+        {
+            //enough space to allocated into the block
+            oldptr = mm_malloc(newsize -DSIZE);
+            memcpy( oldptr, ptr, MIN(size,newsize));
+            mm_free(ptr);
+        }
+        blockbuff = GET_SIZE(HDRP(oldptr)) - newsize;
+    }
 
-	/* Copy the old data. */
-	oldsize = GET_SIZE(HDRP(oldptr));
-	if(size < oldsize) oldsize = size;
-	memcpy(newptr, oldptr, oldsize);
-
-	/* Free the old block. */
-	mm_free(oldptr);
-
-	return newptr;
-}
-
-static void deleteFromFreeList(void *bp)
-{
-	int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
-
-	//CASE 1 : Delete from the beginning of free list
-	if(bp == freeListArray[index])
-	{
-		int offsetValue = GET(NEXT_PTR(bp));
-
-		if(0==offsetValue)
-		{
-			freeListArray[index] = NULL;
-			PUT(NEXT_PTR(bp),0);
-			PUT(PREV_PTR(bp),0);
-		}	
-
-		else if(offsetValue)
-		{
-			void *bp_nextBlock = actualAddressFromOffset(offsetValue);
-			freeListArray[index] = bp_nextBlock;
-
-			PUT(PREV_PTR(bp_nextBlock),0);
-			PUT(NEXT_PTR(bp),0);
-		}
-	}
-
-	// CASE 2 : Delete from the end of the free list
-	else if(0 == GET(NEXT_PTR(bp)))
-	{
-		int offsetValue = GET(PREV_PTR(bp));
-
-		if(offsetValue)
-		{
-			void *bp_prevBlock = actualAddressFromOffset(offsetValue);
-			PUT(NEXT_PTR(bp_prevBlock),0);
-		}
-
-		PUT(PREV_PTR(bp),0);
-	}
-
-	// CASE 3 : Delete from middle of the free list
-	else
-	{	
-		if((GET(PREV_PTR(bp))!=0) && (GET(NEXT_PTR(bp))!=0))
-		{
-			void *bp_prevBlock = actualAddressFromOffset(GET(PREV_PTR(bp)));
-			void *bp_nextBlock = actualAddressFromOffset(GET(NEXT_PTR(bp)));
-
-			PUT(NEXT_PTR(bp_prevBlock), GET(NEXT_PTR(bp)));
-			PUT(PREV_PTR(bp_nextBlock), GET(PREV_PTR(bp)));
-			PUT(NEXT_PTR(bp),0);
-			PUT(PREV_PTR(bp),0);
-		}
-
-	}
-	//mm_checkheap(579);
-}
-
-static void addToFreeList(void *bp)
-{
-	int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
-
-	// If there is no block in free list
-	if(!freeListArray[index])
-		PUT(NEXT_PTR(bp),0);
-
-	// Put block in the beginning of the free list
-	else
-	{
-		PUT(NEXT_PTR(bp),offsetFromActualAddress(freeListArray[index]));
-		PUT(PREV_PTR(freeListArray[index]),offsetFromActualAddress(bp));
-	}
-
-	freeListArray[index] = bp;
-	PUT(PREV_PTR(bp),0);
+    if(blockbuff < 2 * REALLOC_BUFFER)
+    {
+        SET_RATAG(HDRP(NEXT_BLKP(oldptr)));
+    }
+    //return the reallocation block
+    return oldptr;
 }
 
 
-static inline void *actualAddressFromOffset(int offset)
-{
 
-	if(offset==0)
-		return NULL;
 
-	return (void *)(offset + heap_listp);
-}
 
-/* Given an address, convert it to an offset */
-static inline int offsetFromActualAddress(void *bp)
-{
 
-	if(!bp)
-		return 0;
-
-	return (int)((char*)bp - heap_listp);
-}
-
-/* Given a size, calculate the index of FreeList array  */
-static inline int indexOfFreeListArray(int size)
-{
-	int index=0;
-
-	// Max size of first segregated list is 2^4
-	int maxSizeForFirstSizeClass = 1<<4;	
-	
-	// Max size of last segregated list is 2^19
-	int maxSizeForLastSizeClass = (maxSizeForFirstSizeClass<<15);
-
-	for(int blockSize = maxSizeForFirstSizeClass; 
-			blockSize <= maxSizeForLastSizeClass; blockSize <<= 1)
-	{
-		if(size<=blockSize)
-			return index;		
-		index++;
-	}
-
-	return index-1;
-}
 
 
 
