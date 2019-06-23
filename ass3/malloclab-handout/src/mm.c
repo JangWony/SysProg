@@ -68,11 +68,8 @@ static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
-static void printblock(void *bp); 
-static void checkheap(int verbose);
-static void checkblock(void *bp);
 
-static  void add_free_list_lifo(void *ptr)
+static void add_free_list_lifo(void *ptr)
 {
     void *head = heap_freep;
 
@@ -153,7 +150,7 @@ static void *coalesce(void *bp){
 
 
     if (prev_alloc && next_alloc) {             // case 1
-        return add_free_list_lifo(bp);
+        add_free_list_lifo(bp);
     }
     else if (prev_alloc && !next_alloc) {       // case 2   
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
