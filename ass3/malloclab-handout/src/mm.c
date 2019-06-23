@@ -18,14 +18,6 @@
 #include "mm.h"
 #include "memlib.h"
 
-/* If you want debugging output, use the following macro.  
- * When you hand in, remove the #define DEBUG line. */
-#define DEBUGx
-#ifdef DEBUG
-# define dbg_printf(...) printf(__VA_ARGS__)
-#else
-# define dbg_printf(...)
-#endif
 
 
 /* create aliases for driver tests */
@@ -89,16 +81,12 @@ static void *extend_heap(size_t words);
 static void place(void *bp, size_t asize);
 static void *find_fit(size_t asize);
 static void *coalesce(void *bp);
-static void printblock(void *bp); 
-static void checkheap(int verbose);
-static void checkblock(void *bp);
 static void addToFreeList(void *bp);
 static void deleteFromFreeList(void *bp);
 
 /* Given a an offset, convert it to actual address */
 static inline void *actualAddressFromOffset(int offset)
 {
-	dbg_printf("Offset is : %d\n",offset);
 
 	if(offset==0)
 		return NULL;
@@ -109,7 +97,6 @@ static inline void *actualAddressFromOffset(int offset)
 /* Given an address, convert it to an offset */
 static inline int offsetFromActualAddress(void *bp)
 {
-	dbg_printf("Offset from actual address called..\n");
 
 	if(!bp)
 		return 0;
@@ -304,34 +291,6 @@ void *calloc (size_t nmemb, size_t size) {
 
 
 /*
- * Return whether the pointer is in the heap.
- * May be useful for debugging.
- */
-static int in_heap(const void *p) {
-	return p <= mem_heap_hi() && p >= mem_heap_lo();
-}
-
-/*
- * Return whether the pointer is aligned.
- * May be useful for debugging.
- */
-static int aligned(const void *p) {
-	return (size_t)ALIGN(p) == (size_t)p;
-}
-
-/*
- * mm_checkheap
- */
-void mm_checkheap(int lineno) {
-	if(lineno)
-		checkheap(lineno);
-}
-
-/* 
- * The remaining routines are internal helper routines 
- */
-
-/*
  * coalesce - Boundary tag coalescing. Return ptr to coalesced block
  */
 static void *coalesce(void *bp) 
@@ -484,73 +443,6 @@ static void *find_fit(size_t asize)
 	return NULL; /* No fit */
 }
 
-static void printblock(void *bp) 
-{
-	size_t hsize, halloc, fsize, falloc;
-
-	checkheap(0);
-	hsize = GET_SIZE(HDRP(bp));
-	halloc = GET_ALLOC(HDRP(bp));  
-	fsize = GET_SIZE(FTRP(bp));
-	falloc = GET_ALLOC(FTRP(bp));  
-
-	if (hsize == 0) {
-		printf("%p: EOL\n", bp);
-		return;
-	}
-
-	/*  printf("%p: header: [%p:%c] footer: [%p:%c]\n", bp, 
-		hsize, (halloc ? 'a' : 'f'), 
-		fsize, (falloc ? 'a' : 'f')); */
-}
-
-
-static void checkblock(void *bp) 
-{
-	if (!aligned(bp))
-		printf("Error: %p is not doubleword aligned\n", bp);
-	if(!in_heap(bp))
-		printf("Error: Block not within heap boundaries");
-
-	if(GET_ALLOC(HDRP(bp))==0)
-	{
-		if(HDRP(bp)!=FTRP(bp))
-			printf("Error: HEader and footer mismatch in free block");
-	}
-}
-
-/* 
- * checkheap - Minimal check of the heap for consistency 
- */
-void checkheap(int verbose) 
-{
-	char *bp = heap_listp;
-
-	if (verbose)
-		printf("Heap (%p):\n", heap_listp);
-
-	
-	// Check for bad prologue
-	if ((GET_SIZE(HDRP(heap_listp)) != DSIZE) || 
-			!GET_ALLOC(HDRP(heap_listp)))
-		printf("Bad prologue header\n");
-	checkblock(heap_listp);
-
-
-	// Check validity of all the allocated and free blocks
-	for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
-		if (verbose) 
-			printblock(bp);
-		checkblock(bp);
-	}
-
-	if (verbose)
-		printblock(bp);
-
-	// Check for bad epilogue 
-	if ((GET_SIZE(HDRP(bp)) != 0) || !(GET_ALLOC(HDRP(bp))))
-		printf("Bad epilogue header\n");
-}
 
 static void deleteFromFreeList(void *bp)
 {
