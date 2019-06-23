@@ -140,7 +140,7 @@ static void *extend_heap(size_t words){
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
 
-    PUT(HDRP((bp+size), PACK(size, 0));   
+    PUT(HDRP((bp+size), PACK(size, 0)));   
 
     return coalesce(bp);
 }
@@ -267,26 +267,26 @@ void *mm_realloc(void *ptr, size_t size)
 
     /* If size == 0 then this is just free, and we return NULL. */
     if(size == 0) {
-	mm_free(ptr);
-	return 0;
+        mm_free(ptr);
+        return 0;
     }
 
     /* If oldptr is NULL, then this is just malloc. */
     if(ptr == NULL) {
-	return mm_malloc(size);
+	    return mm_malloc(size);
     }
 
     newptr = mm_malloc(size);
 
     /* If realloc() fails the original block is left untouched  */
     if(!newptr) {
-	return 0;
+	    return 0;
     }
 
     /* Copy the old data. */
     oldsize = GET_SIZE(HDRP(ptr));
     if(size < oldsize) oldsize = size;
-    memcpy(newptr, ptr, oldsize);
+        memcpy(newptr, ptr, oldsize);
 
     /* Free the old block. */
     mm_free(ptr);
