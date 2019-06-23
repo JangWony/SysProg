@@ -237,7 +237,7 @@ static void *coalesce(void *bp)
     size_t size = GET_SIZE(HDRP(bp));
 
     if (prev_alloc && next_alloc) {            /* Case 1 */
-	   return add_free_list_lifo(bp);
+	   add_free_list_lifo(bp);
     }
 
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
