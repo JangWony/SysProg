@@ -159,18 +159,18 @@ static void *coalesce(void *bp){
         add_free_list_lifo(bp);
     }
     else if (prev_alloc && !next_alloc) {       // case 2   
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp))) + WSIZE * 2;
         delete_free_list(NEXT_BLKP(bp));
         PUT(HDRP(bp), PACK(size, 0));
         PUT(FTRP(bp), PACK(size, 0));
         add_free_list_lifo(bp);
     } else if (!prev_alloc && next_alloc) {     // case 3            
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + WSIZE * 2;
         PUT(FTRP(bp), PACK(size, 0));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         bp = PREV_BLKP(bp);
     } else {                                    // case 4   
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp))) + 4 * WSIZE;
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         delete_free_list(NEXT_BLKP(bp));
@@ -226,7 +226,7 @@ void *mm_malloc(size_t size)
         return NULL;
     
     if(size < DSIZE)
-        asize = 2 * DSIZE;
+        asize = 4 * DSIZE;
     else
         asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
 
@@ -253,12 +253,13 @@ void mm_free(void *ptr)
     if(heap_listp==0)
         mm_init();
 
-    PUT(HDRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
-    PUT(FTRP(ptr), PACK(size, GET_ALLOC_PREV_BLOCK(ptr)|0));
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
 
-    PUT(HDRP(NEXT_BLKP(ptr)),GET(HDRP(NEXT_BLKP(ptr)))&~2);
-
-    coalesce(ptr);
+    if(heap_freep == NULL)
+        add_free_list_lifo(ptr);
+    else
+        coalesce(ptr);
 }
 
 /*
