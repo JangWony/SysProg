@@ -71,51 +71,14 @@ static void *coalesce(void *bp);
 static void *find_fit(size_t asize);
 static void place(void *bp, size_t asize);
 
+static inline void *actualAddressFromOffset(int offset);
+static inline int offsetFromActualAddress(void *bp);
+static inline int indexOfFreeListArray(int size);
+
 static void addToFreeList(void *bp);
 static void deleteFromFreeList(void *bp);
 
 /* Given a an offset, convert it to actual address */
-static inline void *actualAddressFromOffset(int offset)
-{
-
-	if(offset==0)
-		return NULL;
-
-	return (void *)(offset + heap_listp);
-}
-
-/* Given an address, convert it to an offset */
-static inline int offsetFromActualAddress(void *bp)
-{
-
-	if(!bp)
-		return 0;
-
-	return (int)((char*)bp - heap_listp);
-}
-
-/* Given a size, calculate the index of FreeList array  */
-static inline int indexOfFreeListArray(int size)
-{
-	int index=0;
-
-	// Max size of first segregated list is 2^4
-	int maxSizeForFirstSizeClass = 1<<4;	
-	
-	// Max size of last segregated list is 2^19
-	int maxSizeForLastSizeClass = (maxSizeForFirstSizeClass<<15);
-
-	for(int blockSize = maxSizeForFirstSizeClass; 
-			blockSize <= maxSizeForLastSizeClass; blockSize <<= 1)
-	{
-		if(size<=blockSize)
-			return index;		
-		index++;
-	}
-
-	return index-1;
-}
-
 
 /*
  * Initialize: return -1 on error, 0 on success.
@@ -494,4 +457,45 @@ static void addToFreeList(void *bp)
 
 	freeListArray[index] = bp;
 	PUT(PREV_PTR(bp),0);
+}
+
+static inline void *actualAddressFromOffset(int offset)
+{
+
+	if(offset==0)
+		return NULL;
+
+	return (void *)(offset + heap_listp);
+}
+
+/* Given an address, convert it to an offset */
+static inline int offsetFromActualAddress(void *bp)
+{
+
+	if(!bp)
+		return 0;
+
+	return (int)((char*)bp - heap_listp);
+}
+
+/* Given a size, calculate the index of FreeList array  */
+static inline int indexOfFreeListArray(int size)
+{
+	int index=0;
+
+	// Max size of first segregated list is 2^4
+	int maxSizeForFirstSizeClass = 1<<4;	
+	
+	// Max size of last segregated list is 2^19
+	int maxSizeForLastSizeClass = (maxSizeForFirstSizeClass<<15);
+
+	for(int blockSize = maxSizeForFirstSizeClass; 
+			blockSize <= maxSizeForLastSizeClass; blockSize <<= 1)
+	{
+		if(size<=blockSize)
+			return index;		
+		index++;
+	}
+
+	return index-1;
 }
