@@ -130,16 +130,21 @@ static void *coalesce(void *bp){
     
     return bp;
 }
-
+//best fit
 static void *find_fit(size_t asize){
     void *bp;
-
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0 ; bp = NEXT_BLKP(bp)){
-        if(!GET_ALLOC(HDRP(bp)) && (asize <= GET_SIZE(HDRP(bp)))){
-            return bp;
-        }
+    void *temploc;
+    temploc = NULL;
+    unsigned int temploc_size=INT_MAX;
+    unsigned int curr_size=INT_MAX;
+    for (bp = heap_listp; (curr_size = GET_SIZE(HDRP(bp))) > 0; bp = NEXT_BLKP(bp)) {
+		if( !GET_ALLOC(HDRP(bp)) && ( asize <= curr_size ) && temploc_size >  curr_size ) {
+			temploc = bp;
+			temploc_size = curr_size;
+		}
     }
-    return NULL;
+
+    return temploc;
 }
 
 static void place(void *bp, size_t asize){
