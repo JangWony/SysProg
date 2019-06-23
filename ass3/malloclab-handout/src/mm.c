@@ -22,6 +22,7 @@
 # define dbg_printf(...)
 #endif
 
+
 /* create aliases for driver tests */
 #define malloc mm_malloc
 #define free mm_free
@@ -67,10 +68,21 @@
 /* Given block ptr bp, compute address of next and previous blocks */
 #define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE))) //line:vm:mm:nextblkp
 #define PREV_BLKP(bp)  ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE))) //line:vm:mm:prevblkp
+# 
+#define GET_NEXT(bp)            (*(void **)(bp + DSIZE))
+#define GET_PREV(bp)            (*(void **)bp)
+#define SET_NEXT(bp, ptr)       (GET_NEXT(bp) = ptr)
+#define SET_PREV(bp, ptr)       (GET_PREV(bp) = ptr)
+
+
+
+
+
 /* $end mallocmacros */
 
 /* Global variables */
 static char *heap_listp = 0;  /* Pointer to first block */  
+static char *heap_freep = 0;  /* Pointer to root free block */  
 #ifdef NEXT_FIT
 static char *rover;           /* Next fit rover */
 #endif
@@ -88,6 +100,44 @@ static void *coalesce(void *bp);
 static void printblock(void *bp); 
 static void checkheap(int verbose);
 static void checkblock(void *bp);
+
+
+/* Add - add the specific block ptr to the free list,
+* making it the first element in the list . Implementing using 
+* LIFO Strategy*/
+static  void add_free_list_lifo(void *ptr)
+{
+    void *head = heap_freep;
+
+    /*Add the free node at the head */
+    SET_NEXT(ptr, head);
+    SET_PREV(ptr, NULL);
+    if (head != NULL)
+        SET_PREV(head, ptr);
+    heap_freep = ptr;
+
+}
+
+/*Delete a block from the free list.-- eq. to allocating memory
+ * Implementing for LIFO now*/
+static  void delete_free_list(void *ptr)
+{
+    void *next = GET_NEXT(ptr);
+    void *prev = GET_PREV(ptr);
+
+    // Deleting root ptr node-- in lifo strategy always the case
+    if (prev == NULL) {
+        heap_freep = next;
+        if (next != NULL) {
+            SET_PREV(next, NULL);
+        }
+    } else {
+        SET_NEXT(prev, next);
+        if (next != NULL) {
+            SET_PREV(next, prev);
+        }
+    }
+}
 
 
 /*
@@ -124,18 +174,16 @@ void *malloc (size_t size) {
     size_t extendsize; /* Amount to extend heap if no fit */
     char *bp;      
 
-/* $end mmmalloc */
     if (heap_listp == 0){
 		mm_init();
     }
-/* $begin mmmalloc */
     /* Ignore spurious requests */
     if (size == 0)
-	return NULL;
+	   return NULL;
 
     /* Adjust block size to include overhead and alignment reqs. */
     if (size <= DSIZE)                                          //line:vm:mm:sizeadjust1
-		asize = 2*DSIZE;                                        //line:vm:mm:sizeadjust2
+		asize = 4*DSIZE;                                        //line:vm:mm:sizeadjust2
     else
 		asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE); //line:vm:mm:sizeadjust3
 
@@ -148,7 +196,7 @@ void *malloc (size_t size) {
     /* No fit found. Get more memory and place the block */
     extendsize = MAX(asize,CHUNKSIZE);                 //line:vm:mm:growheap1
     if ((bp = extend_heap(extendsize/WSIZE)) == NULL)  
-		return NULL;                                  //line:vm:mm:growheap2
+	return NULL;                                  //line:vm:mm:growheap2
     place(bp, asize);                                 //line:vm:mm:growheap3
     return bp;
 }
@@ -159,18 +207,23 @@ void *malloc (size_t size) {
 /* $begin mmfree */
 void mm_free(void *bp)
 {
-
     if(bp == 0) 
 	   return;
-
     size_t size = GET_SIZE(HDRP(bp));
     if (heap_listp == 0){
 	   mm_init();
     }
+    /* Convert to Explicit list -- Implement LIFO*/
+
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
-    coalesce(bp);
+    if(heap_freep == NULL)
+        add_free_list_lifo(bp);
+    else
+        coalesce(bp);
 }
+
+/* $end mmfree */
 
 /*
  * coalesce - Boundary tag coalescing. Return ptr to coalesced block
@@ -183,37 +236,38 @@ static void *coalesce(void *bp)
     size_t size = GET_SIZE(HDRP(bp));
 
     if (prev_alloc && next_alloc) {            /* Case 1 */
-	return bp;
+	   return add_free_list_lifo(bp);
     }
 
     else if (prev_alloc && !next_alloc) {      /* Case 2 */
-	size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-	PUT(HDRP(bp), PACK(size, 0));
-	PUT(FTRP(bp), PACK(size,0));
+	   size = size + GET_SIZE(HDRP(NEXT_BLKP(bp))) + WSIZE*2;
+       delete_free_list(NEXT_BLKP(bp));
+	   PUT(HDRP(bp), PACK(size, 0));
+	   PUT(FTRP(bp), PACK(size,0));
+       add_free_list_lifo(bp);
     }
 
     else if (!prev_alloc && next_alloc) {      /* Case 3 */
-	size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-	PUT(FTRP(bp), PACK(size, 0));
-	PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-	bp = PREV_BLKP(bp);
+        bp = PREV_BLKP(bp);
+    	size += GET_SIZE(HDRP(PREV_BLKP(bp))) + WSIZE*2;
+    	PUT(FTRP(bp), PACK(size, 0));
+    	PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
     }
 
     else {                                     /* Case 4 */
-	size += GET_SIZE(HDRP(PREV_BLKP(bp))) + 
-	    GET_SIZE(FTRP(NEXT_BLKP(bp)));
-	PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-	PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-	bp = PREV_BLKP(bp);
+        /*Both prev and next block are not allocated*/
+    	size += GET_SIZE(HDRP(PREV_BLKP(bp))) + 
+    	    GET_SIZE(HDRP(NEXT_BLKP(bp))) + 4*WSIZE ;
+    	PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+    	PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
+        delete_free_list(NEXT_BLKP(bp));
     }
-/* $end mmfree */
 #ifdef NEXT_FIT
     /* Make sure the rover isn't pointing into the free block */
     /* that we just coalesced */
     if ((rover > (char *)bp) && (rover < NEXT_BLKP(bp))) 
 	rover = bp;
 #endif
-/* $begin mmfree */
     return bp;
 }
 /* $end Coalesce*/
@@ -230,7 +284,7 @@ void *mm_realloc(void *ptr, size_t size)
 
     /* If size == 0 then this is just free, and we return NULL. */
     if(size == 0) {
-    	mm_free(ptr);
+	mm_free(ptr);
 	return 0;
     }
 
@@ -261,14 +315,15 @@ void *mm_realloc(void *ptr, size_t size)
  * This function is not tested by mdriver, but it is
  * needed to run the traces.
  */
-void *calloc (size_t nmemb, size_t size) {
-      size_t bytes = nmemb * size;
-  void *newptr;
+void *calloc (size_t nmemb, size_t size) 
+{
+    size_t bytes = nmemb * size;
+    void *newptr;
 
-  newptr = malloc(bytes);
-  memset(newptr, 0, bytes);
+    newptr = malloc(bytes);
+    memset(newptr, 0, bytes);
 
-  return newptr;
+    return newptr;
 }
 
 
@@ -291,15 +346,12 @@ static int aligned(const void *p) {
 /*
  * mm_checkheap
  */
-/**
- * mm_checkheap - Function, to call checkheap as per verbose value
- * @param verbose value determines what things to print in checkheap
- */
 void mm_checkheap(int verbose) {
-	/*Get gcc to be quiet. */
+		/*Get gcc to be quiet. */
 	 verbose = verbose;
-     checkheap(9);
 }
+
+
 
 /* 
  * extend_heap - Extend heap with free block and return its block pointer
@@ -316,9 +368,14 @@ static void *extend_heap(size_t words)
 	return NULL;                                        //line:vm:mm:endextend
 
     /* Initialize free block header/footer and the epilogue header */
+    
     PUT(HDRP(bp), PACK(size, 0));         /* Free block header */   //line:vm:mm:freeblockhdr
     PUT(FTRP(bp), PACK(size, 0));         /* Free block footer */   //line:vm:mm:freeblockftr
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1)); /* New epilogue header */ //line:vm:mm:newepihdr
+    
+    /*Put predecessor Pointer*/
+    PUT(HDRP((bp+size), PACK(size, 0));         /* Free block header */   
+    /*Put successor pointer*/
 
     /* Coalesce if the previous block was free */
     return coalesce(bp);                                          //line:vm:mm:returnblock
@@ -330,22 +387,21 @@ static void *extend_heap(size_t words)
  *         and split if remainder would be at least minimum block size
  */
 /* $begin mmplace */
-/* $begin mmplace-proto */
 static void place(void *bp, size_t asize)
      /* $end mmplace-proto */
 {
     size_t csize = GET_SIZE(HDRP(bp));   
 
     if ((csize - asize) >= (2*DSIZE)) { 
-	PUT(HDRP(bp), PACK(asize, 1));
-	PUT(FTRP(bp), PACK(asize, 1));
-	bp = NEXT_BLKP(bp);
-	PUT(HDRP(bp), PACK(csize-asize, 0));
-	PUT(FTRP(bp), PACK(csize-asize, 0));
+    	PUT(HDRP(bp), PACK(asize, 1));
+    	PUT(FTRP(bp), PACK(asize, 1));
+    	bp = NEXT_BLKP(bp);
+    	PUT(HDRP(bp), PACK(csize-asize, 0));
+    	PUT(FTRP(bp), PACK(csize-asize, 0));
     }
     else { 
-	PUT(HDRP(bp), PACK(csize, 1));
-	PUT(FTRP(bp), PACK(csize, 1));
+        PUT(HDRP(bp), PACK(csize, 1));
+        PUT(FTRP(bp), PACK(csize, 1));
     }
 }
 /* $end mmplace */
@@ -353,12 +409,8 @@ static void place(void *bp, size_t asize)
 /* 
  * find_fit - Find a fit for a block with asize bytes 
  */
-/* $begin mmfirstfit */
-/* $begin mmfirstfit-proto */
 static void *find_fit(size_t asize)
 {
-/* $end mmfirstfit */
-
 #ifdef NEXT_FIT 
     /* Next fit search */
     char *oldrover = rover;
@@ -391,7 +443,6 @@ static void *find_fit(size_t asize)
 
     return temploc;
 #else
-/* $begin mmfirstfit */
     /* First fit search */
     void *bp;
 
@@ -401,7 +452,6 @@ static void *find_fit(size_t asize)
 	}
     }
     return NULL; /* No fit */
-/* $end mmfirstfit */
 #endif
 
 }
@@ -436,6 +486,18 @@ static void checkblock(void *bp)
 
 /* 
  * checkheap - Minimal check of the heap for consistency 
+ */
+
+/*
+ * mm_check
+ * Checks:
+ * 1. if blocks are aligned.
+ * 1. if it is in the heap.
+ * 2. if the list is aligned.
+ * 3. Print the address of that block.
+ * 4. Print the previous and next free block.
+ * 5. Get next block in free list.
+ * 6. Print # of blocks in linked list.
  */
 void checkheap(int verbose) 
 {
