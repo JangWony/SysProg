@@ -85,7 +85,7 @@ int mm_init(void)
 {
 
 
-    if((heap_listp = mem_sbrk(FREE_LIST_ARRAY_SIZE*WSIZE)) + 4*WSIZE == (void *)-1)
+    if((heap_listp = mem_sbrk((FREE_LIST_ARRAY_SIZE*WSIZE)) + 4*WSIZE) == (void *)-1)
         return -1;
 
     freeListArray = (char **)heap_listp;
@@ -133,7 +133,7 @@ static void *coalesce(void *bp){
         return bp;
     }
     else if (prev_alloc && !next_alloc) {       // case 2   
-        deleteFromFreeList(NEXT_BLKP(bp));	
+        deleteFromFreeList(NEXT_BLKP(bp));  
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         PUT(HDRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
         PUT(FTRP(bp), PACK(size, GET_ALLOC_PREV_BLOCK(bp)|0));
@@ -144,8 +144,8 @@ static void *coalesce(void *bp){
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
         bp = PREV_BLKP(bp);
     } else {                                    // case 4   
-        deleteFromFreeList(NEXT_BLKP(bp));	
-		deleteFromFreeList(PREV_BLKP(bp));
+        deleteFromFreeList(NEXT_BLKP(bp));  
+        deleteFromFreeList(PREV_BLKP(bp));
         size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(FTRP(NEXT_BLKP(bp)));
         PUT(HDRP(PREV_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, GET_ALLOC_PREV_BLOCK(PREV_BLKP(bp))|0));
@@ -162,17 +162,17 @@ static void *find_fit(size_t asize){
     int index = indexOfFreeListArray(asize);
 
     while(index < FREE_LIST_ARRAY_SIZE)
-	{
-		for (bp = freeListArray[index]; bp && GET_SIZE(HDRP(bp)) > 0; 
-				bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
-			if (asize <= GET_SIZE(HDRP(bp)) && !GET_ALLOC(HDRP(bp))){
-				return bp;
-			}
-		}
-		index ++;
-	}
+    {
+        for (bp = freeListArray[index]; bp && GET_SIZE(HDRP(bp)) > 0; 
+                bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
+            if (asize <= GET_SIZE(HDRP(bp)) && !GET_ALLOC(HDRP(bp))){
+                return bp;
+            }
+        }
+        index ++;
+    }
 
-	return NULL;
+    return NULL;
 }
 
 static void place(void *bp, size_t asize){
@@ -189,7 +189,7 @@ static void place(void *bp, size_t asize){
     else{
         PUT(HDRP(bp), PACK(csize,GET_ALLOC_PREV_BLOCK(bp)|1));
         if(NEXT_BLKP(bp))
-			PUT(HDRP(NEXT_BLKP(bp)),(GET(HDRP(NEXT_BLKP(bp)))|2));
+            PUT(HDRP(NEXT_BLKP(bp)),(GET(HDRP(NEXT_BLKP(bp)))|2));
     }
 }
 
@@ -253,155 +253,156 @@ void *mm_realloc(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     size_t oldsize;
-	void *newptr;
+    void *newptr;
 
-	/* If size == 0 then this is just free, and we return NULL. */
-	if(size == 0) {
-		mm_free(oldptr);
-		return 0;
-	}
+    /* If size == 0 then this is just free, and we return NULL. */
+    if(size == 0) {
+        mm_free(oldptr);
+        return 0;
+    }
 
-	/* If oldptr is NULL, then this is just malloc. */
-	if(oldptr == NULL) {
-		return mm_malloc(size);
-	}
+    /* If oldptr is NULL, then this is just malloc. */
+    if(oldptr == NULL) {
+        return mm_malloc(size);
+    }
 
-	newptr = mm_malloc(size);
+    newptr = mm_malloc(size);
 
-	/* If realloc() fails the original block is left untouched  */
-	if(!newptr) {
-		return 0;
-	}
+    /* If realloc() fails the original block is left untouched  */
+    if(!newptr) {
+        return 0;
+    }
 
-	/* Copy the old data. */
-	oldsize = GET_SIZE(HDRP(oldptr));
-	if(size < oldsize) oldsize = size;
-	memcpy(newptr, oldptr, oldsize);
+    /* Copy the old data. */
+    oldsize = GET_SIZE(HDRP(oldptr));
+    if(size < oldsize) oldsize = size;
+    memcpy(newptr, oldptr, oldsize);
 
-	/* Free the old block. */
-	mm_free(oldptr);
+    /* Free the old block. */
+    mm_free(oldptr);
 
-	return newptr;
+    return newptr;
 }
 
 static void deleteFromFreeList(void *bp)
 {
-	int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
+    int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
 
-	//CASE 1 : Delete from the beginning of free list
-	if(bp == freeListArray[index])
-	{
-		int offsetValue = GET(NEXT_PTR(bp));
+    //CASE 1 : Delete from the beginning of free list
+    if(bp == freeListArray[index])
+    {
+        int offsetValue = GET(NEXT_PTR(bp));
 
-		if(0==offsetValue)
-		{
-			freeListArray[index] = NULL;
-			PUT(NEXT_PTR(bp),0);
-			PUT(PREV_PTR(bp),0);
-		}	
+        if(0==offsetValue)
+        {
+            freeListArray[index] = NULL;
+            PUT(NEXT_PTR(bp),0);
+            PUT(PREV_PTR(bp),0);
+        }   
 
-		else if(offsetValue)
-		{
-			void *bp_nextBlock = actualAddressFromOffset(offsetValue);
-			freeListArray[index] = bp_nextBlock;
+        else if(offsetValue)
+        {
+            void *bp_nextBlock = actualAddressFromOffset(offsetValue);
+            freeListArray[index] = bp_nextBlock;
 
-			PUT(PREV_PTR(bp_nextBlock),0);
-			PUT(NEXT_PTR(bp),0);
-		}
-	}
+            PUT(PREV_PTR(bp_nextBlock),0);
+            PUT(NEXT_PTR(bp),0);
+        }
+    }
 
-	// CASE 2 : Delete from the end of the free list
-	else if(0 == GET(NEXT_PTR(bp)))
-	{
-		int offsetValue = GET(PREV_PTR(bp));
+    // CASE 2 : Delete from the end of the free list
+    else if(0 == GET(NEXT_PTR(bp)))
+    {
+        int offsetValue = GET(PREV_PTR(bp));
 
-		if(offsetValue)
-		{
-			void *bp_prevBlock = actualAddressFromOffset(offsetValue);
-			PUT(NEXT_PTR(bp_prevBlock),0);
-		}
+        if(offsetValue)
+        {
+            void *bp_prevBlock = actualAddressFromOffset(offsetValue);
+            PUT(NEXT_PTR(bp_prevBlock),0);
+        }
 
-		PUT(PREV_PTR(bp),0);
-	}
+        PUT(PREV_PTR(bp),0);
+    }
 
-	// CASE 3 : Delete from middle of the free list
-	else
-	{	
-		if((GET(PREV_PTR(bp))!=0) && (GET(NEXT_PTR(bp))!=0))
-		{
-			void *bp_prevBlock = actualAddressFromOffset(GET(PREV_PTR(bp)));
-			void *bp_nextBlock = actualAddressFromOffset(GET(NEXT_PTR(bp)));
+    // CASE 3 : Delete from middle of the free list
+    else
+    {   
+        if((GET(PREV_PTR(bp))!=0) && (GET(NEXT_PTR(bp))!=0))
+        {
+            void *bp_prevBlock = actualAddressFromOffset(GET(PREV_PTR(bp)));
+            void *bp_nextBlock = actualAddressFromOffset(GET(NEXT_PTR(bp)));
 
-			PUT(NEXT_PTR(bp_prevBlock), GET(NEXT_PTR(bp)));
-			PUT(PREV_PTR(bp_nextBlock), GET(PREV_PTR(bp)));
-			PUT(NEXT_PTR(bp),0);
-			PUT(PREV_PTR(bp),0);
-		}
+            PUT(NEXT_PTR(bp_prevBlock), GET(NEXT_PTR(bp)));
+            PUT(PREV_PTR(bp_nextBlock), GET(PREV_PTR(bp)));
+            PUT(NEXT_PTR(bp),0);
+            PUT(PREV_PTR(bp),0);
+        }
 
-	}
-	//mm_checkheap(579);
+    }
+    //mm_checkheap(579);
 }
 
 static void addToFreeList(void *bp)
 {
-	int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
+    int index = indexOfFreeListArray(GET_SIZE(HDRP(bp)));
 
-	// If there is no block in free list
-	if(!freeListArray[index])
-		PUT(NEXT_PTR(bp),0);
+    // If there is no block in free list
+    if(!freeListArray[index])
+        PUT(NEXT_PTR(bp),0);
 
-	// Put block in the beginning of the free list
-	else
-	{
-		PUT(NEXT_PTR(bp),offsetFromActualAddress(freeListArray[index]));
-		PUT(PREV_PTR(freeListArray[index]),offsetFromActualAddress(bp));
-	}
+    // Put block in the beginning of the free list
+    else
+    {
+        PUT(NEXT_PTR(bp),offsetFromActualAddress(freeListArray[index]));
+        PUT(PREV_PTR(freeListArray[index]),offsetFromActualAddress(bp));
+    }
 
-	freeListArray[index] = bp;
-	PUT(PREV_PTR(bp),0);
+    freeListArray[index] = bp;
+    PUT(PREV_PTR(bp),0);
 }
 
 
 static inline void *actualAddressFromOffset(int offset)
 {
 
-	if(offset==0)
-		return NULL;
+    if(offset==0)
+        return NULL;
 
-	return (void *)(offset + heap_listp);
+    return (void *)(offset + heap_listp);
 }
 
 /* Given an address, convert it to an offset */
 static inline int offsetFromActualAddress(void *bp)
 {
 
-	if(!bp)
-		return 0;
+    if(!bp)
+        return 0;
 
-	return (int)((char*)bp - heap_listp);
+    return (int)((char*)bp - heap_listp);
 }
 
 /* Given a size, calculate the index of FreeList array  */
 static inline int indexOfFreeListArray(int size)
 {
-	int index=0;
+    int index=0;
 
-	// Max size of first segregated list is 2^4
-	int maxSizeForFirstSizeClass = 1<<4;	
-	
-	// Max size of last segregated list is 2^19
-	int maxSizeForLastSizeClass = (maxSizeForFirstSizeClass<<15);
+    // Max size of first segregated list is 2^4
+    int maxSizeForFirstSizeClass = 1<<4;    
+    
+    // Max size of last segregated list is 2^19
+    int maxSizeForLastSizeClass = (maxSizeForFirstSizeClass<<15);
 
-	for(int blockSize = maxSizeForFirstSizeClass; 
-			blockSize <= maxSizeForLastSizeClass; blockSize <<= 1)
-	{
-		if(size<=blockSize)
-			return index;		
-		index++;
-	}
+    for(int blockSize = maxSizeForFirstSizeClass; 
+            blockSize <= maxSizeForLastSizeClass; blockSize <<= 1)
+    {
+        if(size<=blockSize)
+            return index;       
+        index++;
+    }
 
-	return index-1;
+    return index-1;
 }
+
 
 
 
