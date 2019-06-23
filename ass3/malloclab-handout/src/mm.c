@@ -85,7 +85,7 @@ int mm_init(void)
 {
 
 
-    if((heap_listp = (mem_sbrk(FREE_LIST_ARRAY_SIZE*WSIZE)) + 4*WSIZE) == (void *)-1)
+    if((heap_listp = mem_sbrk((FREE_LIST_ARRAY_SIZE*WSIZE)) + 4*WSIZE) == (void *)-1)
         return -1;
 
     freeListArray = (char **)heap_listp;
