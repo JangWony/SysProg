@@ -85,38 +85,26 @@ static void deleteFromFreeList(void *bp);
  */
 int mm_init(void) {
 
-	/* Create the initial empty heap */
-	
-	// Allocate space for blocks and the headers of segregated 
-	// lists
-	if ((heap_listp = mem_sbrk((FREE_LIST_ARRAY_SIZE*DSIZE) + 4*WSIZE)) 
-			== (void *)-1)
-		return -1;
+	 if((heap_listp = mem_sbrk(FREE_LIST_ARRAY_SIZE*WSIZE)) + 4*WSIZE == (void *)-1)
+        return -1;
 
-	// Initialize the head of the segregated lists
-	// to 0
-	freeListArray = (char **)heap_listp;
-	memset(freeListArray, 0, (FREE_LIST_ARRAY_SIZE*DSIZE));
+    freeListArray = (char **)heap_listp;
+    memset(freeListArray, 0, (FREE_LIST_ARRAY_SIZE*DSIZE));
 
-	// Starting the blocks after the headers
-	heap_listp += (FREE_LIST_ARRAY_SIZE*DSIZE);
+    heap_listp += (FREE_LIST_ARRAY_SIZE*DSIZE);
 
-	PUT(heap_listp, 0);                          /* Alignment padding */
-	PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1)); /* Prologue header */ 
-	PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1)); /* Prologue footer */ 
+    PUT(heap_listp, 0);                                     /* Alignment padding */
+    PUT(heap_listp + (1*WSIZE), PACK(DSIZE, 1));            /* Prologue header */
+    PUT(heap_listp + (2*WSIZE), PACK(DSIZE, 1));            /* Prologue footer */
+    PUT(heap_listp + (3*WSIZE), PACK(0,3));                 /* Epilogue header */
+    heap_listp += (2*WSIZE);
 
-	// Packed with 3 to make sure no coalescing
-	// happens with the prologue footer
-	PUT(heap_listp + (3*WSIZE), PACK(0, 3));     /* Epilogue header */
+    /* Extend the empty heap with a free block of CHUNKSIZE bytes */
+    if(extend_heap(CHUNKSIZE/WSIZE) == NULL)
+        return -1;
 
-	heap_listp += (2*WSIZE);                  
+    return 0;
 
-
-	/* Extend the empty heap with a free block of CHUNKSIZE bytes */
-	if (extend_heap(CHUNKSIZE/WSIZE) == NULL) 
-		return -1;
-
-	return 0;
 }
 /* $end mminit */
 
