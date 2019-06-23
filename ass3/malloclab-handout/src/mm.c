@@ -194,8 +194,7 @@ void *mm_malloc(size_t size)
  */
 void mm_free(void *ptr)
 {
-    if(!ptr)
-        return;
+    if(!ptr) return ; 
     size_t size = GET_SIZE(HDRP(ptr));
 
     PUT(HDRP(ptr), PACK(size, 0));
@@ -208,40 +207,19 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
-    void* oldptr = ptr;
-    size_t oldsize;
-	void* newptr;
-
-	if(size == 0) 
-	{
-		free(oldptr);
-		return 0;
-	}
-		    
-	if(oldptr == NULL) 
-	{
-		return malloc(size);
-	}
-			
-	newptr = malloc(size);
-	
-	if(!newptr) 
-	{
-		return 0;
-	}
-
-	// Copy the old data
-	//oldsize = GET_SIZE(HDRP(oldptr));
-	
-	oldsize = ((size_t*)(((char*)(oldsize)) - (ALIGN(sizeof(size_t)))));
-	if(size < oldsize) oldsize = size;
-		
-	memcpy(newptr, oldptr, size);
-						
-	//Free the old block
-	free(oldptr);
-
-	return newptr;    
+    void *oldptr = ptr;
+    void *newptr;
+    size_t copySize;
+    
+    newptr = mm_malloc(size);
+    if (newptr == NULL)
+      return NULL;
+    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
+    if (size < copySize)
+      copySize = size;
+    memcpy(newptr, oldptr, copySize);
+    mm_free(oldptr);
+    return newptr;
 }
 
 
