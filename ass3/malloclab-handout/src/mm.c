@@ -116,7 +116,7 @@ static void *extend_heap(size_t words){
 
 
 static void *coalesce(void *bp){
-    size_t prev_alloc = GET_ALLOC_PREV_BLOCK(bp));
+    size_t prev_alloc = GET_ALLOC_PREV_BLOCK(bp);
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
 
