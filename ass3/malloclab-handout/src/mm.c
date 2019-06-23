@@ -1,86 +1,76 @@
 /*
- * mm.c
+ * mm-naive.c - The fastest, least memory-efficient malloc package.
  * 
- * Prateek Jain - prateekj
+ * In this naive approach, a block is allocated by simply incrementing
+ * the brk pointer.  A block is pure payload. There are no headers or
+ * footers.  Blocks are never coalesced or reused. Realloc is
+ * implemented directly using mm_malloc and mm_free.
  *
- * This is a 32-bit and 64-bit allocator based on
- * segregated lists, with a total of 16 lists, 
- * first fit placement and boundary tag coalescing.
- * Blocks are aligned to double word boundaries.
- *
+ * NOTE TO STUDENTS: Replace this header comment with your own header
+ * comment that gives a high level description of your solution.
  */
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <assert.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "mm.h"
 #include "memlib.h"
 
-
-
-/* create aliases for driver tests */
-#define malloc mm_malloc
-#define free mm_free
-#define realloc mm_realloc
-#define calloc mm_calloc
+/*********************************************************
+ * NOTE TO STUDENTS: Before you do anything else, please
+ * provide your team information in the following struct.
+ ********************************************************/
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(p) (((size_t)(p) + (ALIGNMENT-1)) & ~0x7)
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 
 
-/* $begin mallocmacros */
-/* Basic constants and macros */
-#define WSIZE       4       /* Word and header/footer size (bytes) */
-#define DSIZE       8       /* Doubleword size (bytes) */
-#define CHUNKSIZE  (1<<9)  /* Extend heap by this amount (bytes) */
+/* Additional Macros */
+#define WSIZE 4
+#define DSIZE 8
+#define CHUNKSIZE (1<<12)
 
-#define MAX(x, y) ((x) > (y)? (x) : (y))  
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
 
-/* Pack a size and allocated bit into a word */
-#define PACK(size, alloc)  ((size) | (alloc))
+#define PACK(size, alloc) ((size) | (alloc))
 
-/* Read and write a word at address p */
-#define GET(p)       (*(unsigned int *)(p))            
-#define PUT(p, val)  (*(unsigned int *)(p) = (val))   
+#define GET(p)      (*(unsigned int *)(p))
+#define PUT(p, val) (*(unsigned int *)(p) = (val))
 
-/* Read the size and allocated fields from address p */
-#define GET_SIZE(p)  (GET(p) & ~0x7)                
-#define GET_ALLOC(p) (GET(p) & 0x1)           
+#define GET_SIZE(p) (GET(p) & ~0x7)
+#define GET_ALLOC(p) (GET(p) & 0x1)
+#define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
 
-/* Given block ptr bp, compute address of its header and footer */
-#define HDRP(bp)       ((char *)(bp) - WSIZE)                      
-#define FTRP(bp)       ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+#define HDRP(bp) ((char *)(bp) - WSIZE)
+#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
-/* Given block ptr bp, compute address of next and previous blocks */
-#define NEXT_BLKP(bp)  ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
-#define PREV_BLKP(bp)  ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
+#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp)- WSIZE)))
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp)- DSIZE)))
 
-
-/* Given block ptr bp, find next and previous free blocks*/
 #define NEXT_PTR(bp)   ((char *)(bp) + WSIZE)
 #define PREV_PTR(bp)   ((char *)(bp))
 
-/* Find the status of allocation of the previous block */
 #define GET_ALLOC_PREV_BLOCK(bp)   (GET(HDRP(bp)) & 2) 
 
-/* Number ofsegregated free lists */
 #define FREE_LIST_ARRAY_SIZE 16
 
-
-/* Global variables */
-static char *heap_listp = 0;  /* Pointer to first block */  
+/* Global var */
+static char *heap_listp=0;
 static char **freeListArray = NULL;
 
-/* Function prototypes for internal helper routines */
-static void *extend_heap(size_t words);
-static void place(void *bp, size_t asize);
-static void *find_fit(size_t asize);
+/* functions */
+static void *extend_heap(size_t size);
 static void *coalesce(void *bp);
+static void *find_fit(size_t asize);
+static void place(void *bp, size_t asize);
+
 static void addToFreeList(void *bp);
 static void deleteFromFreeList(void *bp);
 
