@@ -168,7 +168,7 @@ static void *find_fit(size_t asize){
     while(index < FREE_LIST_ARRAY_SIZE)
 	{
 		for (bp = freeListArray[index]; bp && (curr = GET_SIZE(HDRP(bp))) > 0; bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
-			if ((asize <= curr_size )) && !GET_ALLOC(HDRP(bp)) && temploc_size > curr_size){
+			if ((asize <= curr_size ) && !GET_ALLOC(HDRP(bp)) && temploc_size > curr_size){
 				temploc = bp;
 			    temploc_size = curr_size;
 			}
