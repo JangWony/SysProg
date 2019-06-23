@@ -160,7 +160,6 @@ void *malloc (size_t size) {
 void mm_free(void *bp)
 {
 
-    printf("In Free \n");
     if(bp == 0) 
 	   return;
 
