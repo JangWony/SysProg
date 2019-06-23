@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 
 #include "mm.h"
 #include "memlib.h"
@@ -167,7 +168,7 @@ static void *find_fit(size_t asize){
     unsigned int curr_size=INT_MAX;
     while(index < FREE_LIST_ARRAY_SIZE)
 	{
-		for (bp = freeListArray[index]; bp && (curr = GET_SIZE(HDRP(bp))) > 0; bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
+		for (bp = freeListArray[index]; bp && (curr_size = GET_SIZE(HDRP(bp))) > 0; bp = actualAddressFromOffset(GET(NEXT_PTR(bp)))){
 			if ((asize <= curr_size ) && !GET_ALLOC(HDRP(bp)) && temploc_size > curr_size){
 				temploc = bp;
 			    temploc_size = curr_size;
